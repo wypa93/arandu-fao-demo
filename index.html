@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Arandu | ASTA Suriname Pineapple Pilot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* ============================================================
+           DESIGN TOKENS (shared with frontend/dashboard/index.html)
+           ============================================================ */
+        :root {
+            --bg-color: #f5f6f8;
+            --bg-surface: #ffffff;
+            --card-bg: #ffffff;
+            --card-bg-hover: #f8fafc;
+            --glass-border: rgba(15, 23, 42, 0.09);
+            --glass-border-hover: rgba(15, 23, 42, 0.18);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --accent-green: #4ade80;
+            --accent-cyan: #06b6d4;
+            --accent-gradient: linear-gradient(135deg, #4ade80 0%, #06b6d4 100%);
+            --status-good: #4ade80;
+            --status-watch: #facc15;
+            --status-attention: #f97316;
+            --status-act: #ef4444;
+            --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 16px rgba(15, 23, 42, 0.04);
+            --tint: rgba(15, 23, 42, 0.035);
+            --text-green: #15803d;
+            --text-yellow: #a16207;
+            --text-orange: #c2410c;
+            --text-red: #b91c1c;
+            --text-cyan: #0e7490;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-stack);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .gradient-text {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 9999px;
+            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
+        }
+        .badge-green  { background: rgba(34,197,94,0.12);  color: var(--text-green); }
+        .badge-yellow { background: rgba(250,204,21,0.2); color: var(--text-yellow); }
+        .badge-orange { background: rgba(249,115,22,0.12); color: var(--text-orange); }
+        .badge-red    { background: rgba(239,68,68,0.12);  color: var(--text-red); }
+        .badge-cyan   { background: rgba(6,182,212,0.12);  color: var(--text-cyan); }
+        .badge-grey   { background: rgba(15,23,42,0.06); color: var(--text-secondary); }
+
+        /* ---------- Top bar ---------- */
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 24px; position: sticky; top: 0; z-index: 1000; flex-wrap: wrap; gap: 12px;
+            background: rgba(255,255,255,0.9); backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .topbar-logo {
+            width: 36px; height: 36px; border-radius: 10px; background: var(--accent-gradient);
+            display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #0a0a0a;
+        }
+        .topbar-title h1 { font-size: 1.05rem; font-weight: 600; line-height: 1.2; }
+        .topbar-title span { font-size: 0.76rem; color: var(--text-secondary); }
+        .topbar-right { display: flex; align-items: center; gap: 10px; }
+        .btn, select.btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 14px; border-radius: var(--radius-sm);
+            border: 1px solid var(--glass-border); background: var(--card-bg);
+            color: var(--text-secondary); font-size: 0.8rem; font-family: inherit; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { border-color: var(--glass-border-hover); color: var(--text-primary); background: var(--card-bg-hover); }
+        .btn-primary { background: var(--accent-gradient); color: #0a0a0a; border: none; font-weight: 600; }
+        .btn-primary:hover { color: #0a0a0a; filter: brightness(1.1); }
+        select.btn option { background: #ffffff; color: var(--text-primary); }
+
+        /* ---------- Layout ---------- */
+        .dashboard { max-width: 1480px; margin: 0 auto; padding: 20px 24px 48px; }
+        .mock-banner {
+            display: flex; gap: 10px; align-items: center; margin-bottom: 18px;
+            padding: 10px 14px; border-radius: var(--radius-md);
+            background: #fefce8; border: 1px solid rgba(202,138,4,0.3);
+            font-size: 0.8rem; color: #854d0e;
+        }
+        .section-title {
+            font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-muted); margin: 26px 0 12px;
+        }
+        .grid { display: grid; gap: 16px; }
+        .grid-3 { grid-template-columns: 2fr 1fr; }
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-3eq { grid-template-columns: 1fr 1fr 1fr; }
+        .span-2 { grid-column: span 2; }
+
+        .card {
+            background: var(--card-bg); border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-card);
+            min-width: 0;
+        }
+        .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .card-title { font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .card-subtitle { font-size: 0.76rem; color: var(--text-secondary); margin-top: 2px; }
+        .muted { color: var(--text-muted); }
+        .small { font-size: 0.76rem; }
+
+        /* ---------- KPIs ---------- */
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .kpi-card {
+            background: var(--card-bg); border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg); padding: 16px 18px; position: relative; overflow: hidden;
+        }
+        .kpi-icon { position: absolute; right: 14px; top: 12px; font-size: 22px; opacity: 0.7; }
+        .kpi-label { font-size: 0.74rem; color: var(--text-secondary); font-weight: 500; }
+        .kpi-value { font-size: 1.75rem; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+        .kpi-value small { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); }
+        .kpi-sub { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; }
+        .up { color: var(--text-green); }
+        .warn { color: var(--text-orange); }
+        .progress { height: 6px; border-radius: 99px; background: rgba(15,23,42,0.08); margin-top: 8px; overflow: hidden; }
+        .progress > span { display: block; height: 100%; border-radius: 99px; background: var(--accent-gradient); }
+
+        /* ---------- Map ---------- */
+        .map-wrap { position: relative; }
+        #map { height: 600px; border-radius: var(--radius-md); border: 1px solid var(--glass-border); background: #0f0f10; }
+        .map-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+        .map-toolbar input {
+            flex: 1; min-width: 180px; padding: 8px 12px; border-radius: var(--radius-sm);
+            border: 1px solid var(--glass-border); background: #ffffff; color: var(--text-primary); font-family: inherit; font-size: 0.8rem;
+        }
+        .seg { display: inline-flex; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); overflow: hidden; }
+        .seg button {
+            border: none; background: transparent; color: var(--text-secondary); padding: 7px 11px;
+            font-family: inherit; font-size: 0.76rem; cursor: pointer;
+        }
+        .seg button.active { background: rgba(34,197,94,0.12); color: var(--text-green); font-weight: 600; }
+        .legend {
+            position: absolute; bottom: 28px; right: 12px; z-index: 500;
+            background: rgba(255,255,255,0.94); border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
+            padding: 10px 12px; font-size: 0.72rem; color: var(--text-secondary); min-width: 150px; max-width: 220px;
+        }
+        .legend-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+        .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+        .leaflet-popup-content-wrapper, .leaflet-tooltip {
+            background: #ffffff !important; color: var(--text-primary) !important; border: 1px solid var(--glass-border-hover) !important;
+            box-shadow: 0 4px 16px rgba(15,23,42,0.12) !important;
+            font-family: var(--font-stack) !important; border-radius: 10px !important;
+        }
+        .leaflet-popup-tip { background: #ffffff !important; }
+        .leaflet-tooltip:before { display: none; }
+
+        /* ---------- Field panel ---------- */
+        #fieldPanel { height: 100%; display: flex; flex-direction: column; }
+        .panel-scroll { overflow-y: auto; max-height: 660px; padding-right: 4px; }
+        .field-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .field-name { font-size: 1.1rem; font-weight: 700; }
+        .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+        .fact { background: var(--tint); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 8px 10px; }
+        .fact b { display: block; font-size: 0.9rem; font-weight: 600; }
+        .fact span { font-size: 0.7rem; color: var(--text-muted); }
+        .status-box {
+            border-radius: var(--radius-md); padding: 12px 14px; margin: 10px 0 14px; font-size: 0.84rem;
+            border: 1px solid var(--glass-border);
+        }
+        .idx-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+        .idx { text-align: center; padding: 8px; border-radius: var(--radius-sm); background: var(--tint); border: 1px solid var(--glass-border); }
+        .idx b { font-size: 1.05rem; display: block; }
+        .idx span { font-size: 0.68rem; color: var(--text-muted); }
+        .report-list { list-style: none; margin-top: 8px; }
+        .report-list li {
+            display: flex; justify-content: space-between; gap: 10px; padding: 8px 0;
+            border-bottom: 1px solid var(--glass-border); font-size: 0.78rem;
+        }
+        .empty-state { color: var(--text-secondary); font-size: 0.84rem; }
+        .chart-box { position: relative; height: 210px; }
+        .chart-box.tall { height: 260px; }
+
+        /* ---------- Tables ---------- */
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        th { text-align: left; color: var(--text-muted); font-weight: 500; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; border-bottom: 1px solid var(--glass-border); }
+        td { padding: 9px 6px; border-bottom: 1px solid var(--glass-border); }
+        tr.clickable { cursor: pointer; }
+        tr.clickable:hover td { background: var(--tint); }
+        .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+        /* ---------- Forecast ---------- */
+        .forecast { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 14px; }
+        .day { text-align: center; padding: 10px 6px; border-radius: var(--radius-sm); background: var(--tint); border: 1px solid var(--glass-border); font-size: 0.74rem; }
+        .day .ico { font-size: 1.3rem; margin: 2px 0; }
+        .day .spray { margin-top: 4px; font-size: 0.64rem; }
+
+        .indicator { margin-bottom: 14px; }
+        .indicator-head { display: flex; justify-content: space-between; font-size: 0.8rem; }
+        .alert-item { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--glass-border); font-size: 0.8rem; cursor: pointer; }
+        .alert-item:hover { background: var(--tint); }
+
+        /* ---------- Modal ---------- */
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 2000;
+            display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-backdrop.open { display: flex; }
+        .modal {
+            width: min(760px, 100%); max-height: 90vh; overflow-y: auto;
+            background: #ffffff; border: 1px solid var(--glass-border-hover); border-radius: var(--radius-lg); padding: 22px;
+            box-shadow: 0 24px 64px rgba(15,23,42,0.18);
+        }
+        .modal h2 { font-size: 1.1rem; margin-bottom: 4px; }
+        .tpl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+        .tpl {
+            border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px; cursor: pointer;
+            background: var(--tint); font-size: 0.8rem;
+        }
+        .tpl b { display: block; font-size: 0.88rem; margin-bottom: 2px; }
+        .tpl.active { border-color: #16a34a; background: rgba(34,197,94,0.07); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        .form-row label, .checks label { font-size: 0.76rem; color: var(--text-secondary); display: block; }
+        .form-row select { width: 100%; margin-top: 4px; }
+        .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 8px 0 16px; }
+        .checks label { display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-size: 0.8rem; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+        .toast {
+            position: fixed; bottom: 24px; right: 24px; z-index: 3000; padding: 12px 16px;
+            background: #ffffff; border: 1px solid #16a34a; border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(15,23,42,0.12);
+            font-size: 0.82rem; display: none;
+        }
+
+        footer { margin-top: 30px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.7; }
+
+        @media (max-width: 1100px) {
+            .grid-3, .grid-2, .grid-3eq { grid-template-columns: 1fr; }
+            .span-2 { grid-column: auto; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* ---------- View tabs ---------- */
+        .tabs { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--tint); }
+        .tabs button {
+            border: none; background: transparent; color: var(--text-secondary); padding: 7px 14px; border-radius: 7px;
+            font-family: inherit; font-size: 0.8rem; font-weight: 500; cursor: pointer;
+        }
+        .tabs button.active { background: #ffffff; color: var(--text-primary); box-shadow: 0 1px 3px rgba(15,23,42,0.12); }
+        .view[hidden] { display: none !important; }
+        .uc-chip {
+            display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 99px; cursor: pointer;
+            font-size: 0.66rem; font-weight: 600; color: var(--text-cyan); border: 1px solid rgba(8,145,178,0.35);
+            background: rgba(6,182,212,0.08); white-space: nowrap;
+        }
+        .uc-chip:hover { background: rgba(6,182,212,0.18); }
+        .flash { animation: flash 2.4s ease-out; }
+        @keyframes flash {
+            0%, 40% { box-shadow: 0 0 0 3px #16a34a, 0 0 32px rgba(22,163,74,0.25); }
+            100% { box-shadow: var(--shadow-card); }
+        }
+
+        /* ---------- Use cases view ---------- */
+        .hero { padding: 26px 0 8px; }
+        .hero h2 { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; }
+        .hero p { color: var(--text-secondary); max-width: 860px; margin-top: 6px; }
+        .quote {
+            margin-top: 16px; padding: 14px 18px; border-left: 3px solid var(--accent-green); border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            background: rgba(34,197,94,0.07); font-size: 0.95rem; max-width: 860px;
+        }
+        .audience-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .aud-card { border-top: 3px solid var(--c); }
+        .aud-card h4 { font-size: 0.9rem; margin-bottom: 6px; }
+        .aud-card ul { list-style: none; font-size: 0.8rem; color: var(--text-secondary); }
+        .aud-card li { padding: 3px 0; cursor: pointer; }
+        .aud-card li:hover { color: var(--text-primary); }
+        .criteria { list-style: none; font-size: 0.82rem; }
+        .criteria li { padding: 8px 0; border-bottom: 1px solid var(--glass-border); }
+        .criteria b { color: var(--text-primary); }
+        .uc-list { display: flex; flex-direction: column; gap: 12px; }
+        .uc {
+            display: grid; grid-template-columns: 64px 1fr 230px; gap: 18px; align-items: start;
+            border-left: 3px solid var(--c);
+        }
+        .uc.picked { box-shadow: 0 0 0 1px rgba(250,204,21,0.5), var(--shadow-card); }
+        .uc-rank { font-size: 2rem; font-weight: 700; line-height: 1; color: var(--c); text-align: center; }
+        .uc-rank small { display: block; font-size: 0.62rem; font-weight: 500; color: var(--text-muted); margin-top: 4px; }
+        .uc h3 { font-size: 1.02rem; font-weight: 600; margin-bottom: 4px; }
+        .uc .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+        .uc-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; font-size: 0.8rem; color: var(--text-secondary); }
+        .uc-body b { display: block; color: var(--text-primary); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+        .uc-side { display: flex; flex-direction: column; gap: 8px; }
+        .uc-side .score { display: flex; justify-content: space-between; font-size: 0.74rem; color: var(--text-secondary); }
+        .dots { letter-spacing: 2px; color: #16a34a; }
+        .dots i { color: rgba(15,23,42,0.13); font-style: normal; }
+        .uc-ctrl { display: flex; gap: 6px; }
+        .uc-ctrl .btn { padding: 6px 10px; }
+        .question { margin-top: 10px; padding: 8px 12px; border-radius: var(--radius-sm); background: #fefce8; border: 1px dashed rgba(202,138,4,0.45); font-size: 0.78rem; color: #854d0e; }
+        .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .phase h4 { font-size: 0.92rem; }
+        .phase .when { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 10px; }
+        .phase .chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; margin-bottom: 12px; }
+        .phase ul { font-size: 0.76rem; color: var(--text-secondary); padding-left: 16px; }
+        .phase li { margin-bottom: 3px; }
+
+        /* ---------- Demo tour ---------- */
+        .tour-focus {
+            position: relative; z-index: 1500 !important;
+            box-shadow: 0 0 0 3px #16a34a, 0 0 0 9999px rgba(15,23,42,0.5) !important;
+            border-radius: var(--radius-lg);
+        }
+        .tour-box {
+            position: fixed; right: 24px; bottom: 24px; z-index: 2500; width: min(420px, calc(100vw - 48px));
+            background: #ffffff; border: 1px solid #16a34a; border-radius: var(--radius-lg); padding: 18px;
+            box-shadow: 0 12px 48px rgba(15,23,42,0.25); display: none;
+        }
+        .tour-box.open { display: block; }
+        .tour-step { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+        .tour-box h3 { font-size: 1.02rem; margin: 4px 0 8px; }
+        .tour-box p { font-size: 0.84rem; color: var(--text-secondary); }
+        .tour-box .say { margin-top: 10px; font-size: 0.8rem; color: var(--text-primary); border-left: 2px solid var(--accent-cyan); padding-left: 10px; }
+        .tour-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; gap: 8px; }
+        .tour-progress { height: 3px; background: rgba(15,23,42,0.08); border-radius: 99px; margin-top: 12px; overflow: hidden; }
+        .tour-progress span { display: block; height: 100%; background: var(--accent-gradient); }
+
+        @media (max-width: 1100px) {
+            .uc { grid-template-columns: 48px 1fr; }
+            .uc-side { grid-column: 2; }
+            .uc-body, .audience-row, .phases { grid-template-columns: 1fr; }
+        }
+
+        /* ---------- Print (PDF export) ---------- */
+        @media print {
+            body { background: #fff; color: #111; }
+            .topbar-right, .map-toolbar, .modal-backdrop, .toast, .mock-banner button, .tabs, .uc-ctrl, .tour-box, .uc-side .btn { display: none !important; }
+            .uc, .aud-card, .phase { break-inside: avoid; }
+            .uc-body, .uc h3, .phase ul, .aud-card ul { color: #222 !important; }
+            .uc-body b { color: #111; }
+            .question { color: #7c5e00; background: #fffbea; }
+            .topbar { position: static; background: #fff; border-bottom: 2px solid #111; }
+            .card, .kpi-card { background: #fff; border: 1px solid #ccc; box-shadow: none; break-inside: avoid; }
+            .kpi-label, .card-subtitle, .muted, th, footer { color: #555 !important; }
+            .gradient-text { -webkit-text-fill-color: #166534; }
+            .panel-scroll { max-height: none; overflow: visible; }
+            #map { height: 420px; }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ============================ TOP BAR ============================ -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-logo">A</div>
+            <div class="topbar-title">
+                <h1>ASTA Suriname · Pineapple Pilot Monitor</h1>
+                <span>FAO × Arandu · Para &amp; Marowijne · data as of <b id="asOf">5 Oct 2026</b></span>
+            </div>
+        </div>
+        <div class="tabs" id="viewTabs">
+            <button data-view="dashboard" class="active">📊 Dashboard</button>
+            <button data-view="usecases">🎯 Use cases</button>
+            <button id="startTour">▶ Demo tour</button>
+        </div>
+        <div class="topbar-right">
+            <select class="btn" id="periodSel" title="Period">
+                <option>Last 30 days</option>
+                <option>Last quarter</option>
+                <option selected>Pilot to date</option>
+            </select>
+            <select class="btn" id="districtSel" title="District">
+                <option value="all">All districts</option>
+                <option value="Para">Para</option>
+                <option value="Marowijne">Marowijne</option>
+            </select>
+            <select class="btn" title="Language">
+                <option>EN</option>
+                <option>NL</option>
+            </select>
+            <button class="btn btn-primary" id="openPdf">📄 PDF reports</button>
+        </div>
+    </header>
+
+    <main class="dashboard view" id="view-dashboard">
+        <div class="mock-banner">
+            ⚠️ <span><b>Mockup.</b> Fields, farmers, usage and indices are simulated. Satellite availability
+            (Sentinel-2 clear-report days, Sentinel-1 passes) uses the real Oct 2025 – Sep 2026 replay at Redi Doti and the
+            savanna belt.</span>
+        </div>
+
+        <!-- ============================ KPIs ============================ -->
+        <div class="kpi-grid" id="kpis"></div>
+
+        <!-- ============================ MAP + FIELD ============================ -->
+        <div class="section-title">Pilot fields</div>
+        <div class="grid grid-3" id="fieldsRow">
+            <div class="card" id="mapCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">🗺️ Monitored fields <span class="uc-chip" data-uc="triage"></span></div>
+                        <div class="card-subtitle">Zoom in or click a village to see field outlines · click a field for its satellite history</div>
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn" id="photoToggle">📷 Photo diagnoses</button>
+                        <button class="btn" id="zoomPilot">🎯 Pilot area</button>
+                    </div>
+                </div>
+                <div class="map-toolbar">
+                    <input id="fieldSearch" list="fieldList" placeholder="Search field ID or village…">
+                    <datalist id="fieldList"></datalist>
+                    <div class="seg" id="colorMode">
+                        <button data-mode="status" class="active">Status</button>
+                        <button data-mode="ndvi">Vigor (NDVI)</button>
+                        <button data-mode="ndre">Leaf greenness</button>
+                        <button data-mode="fresh">Image age</button>
+                    </div>
+                    <div class="seg" id="typeFilter">
+                        <button data-type="all" class="active">All plots</button>
+                        <button data-type="demo">Demo</button>
+                        <button data-type="traditional">Traditional</button>
+                    </div>
+                </div>
+                <div class="map-wrap">
+                    <div id="map"></div>
+                    <div class="legend" id="legend"></div>
+                </div>
+            </div>
+
+            <div class="card" id="fieldPanel">
+                <div class="panel-scroll" id="fieldPanelBody"></div>
+            </div>
+        </div>
+
+        <!-- ============================ CLIMATE ============================ -->
+        <div class="section-title">Climate &amp; satellite conditions</div>
+        <div class="grid grid-3">
+            <div class="card" id="climateCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">🌦️ Rainfall vs. satellite visibility <span class="uc-chip" data-uc="weather"></span></div>
+                        <div class="card-subtitle">Monthly rainfall (ERA5-Land, pilot area) and share of days a clear-sky report was possible</div>
+                    </div>
+                    <span class="badge badge-cyan">Clear-day % = real replay</span>
+                </div>
+                <div class="chart-box tall"><canvas id="climateChart"></canvas></div>
+                <div class="forecast" id="forecast"></div>
+            </div>
+            <div class="card" id="alertsCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">🚨 Field alerts <span class="uc-chip" data-uc="triage"></span></div>
+                        <div class="card-subtitle">Fields at 🟠 or 🔴 in their latest report</div>
+                    </div>
+                </div>
+                <div id="alertList" class="panel-scroll" style="max-height:330px"></div>
+                <div style="margin-top:14px">
+                    <div class="card-title" style="font-size:0.85rem">🛰️ Data availability (last 12 months)</div>
+                    <table style="margin-top:6px">
+                        <tr><td>Sentinel-2 acquisitions</td><td class="num">104</td></tr>
+                        <tr><td>…usable over plot (≥30 % clear)</td><td class="num">31 – 45</td></tr>
+                        <tr><td>Sentinel-1 radar passes</td><td class="num">94 · every ~5 d</td></tr>
+                        <tr><td>Longest optical blackout</td><td class="num warn">45 – 55 d</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================ USAGE ============================ -->
+        <div class="section-title">Usage</div>
+        <div class="grid grid-3">
+            <div class="card" id="usageCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">📊 Reports delivered per week <span class="uc-chip" data-uc="evidence"></span></div>
+                        <div class="card-subtitle">WhatsApp menu reports by type, last 12 weeks</div>
+                    </div>
+                </div>
+                <div class="chart-box tall"><canvas id="usageChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">🎯 Field status mix</div>
+                        <div class="card-subtitle">Latest report per field</div>
+                    </div>
+                </div>
+                <div class="chart-box"><canvas id="statusChart"></canvas></div>
+                <table style="margin-top:12px" id="funnel"></table>
+            </div>
+        </div>
+
+        <!-- ============================ MACRO ============================ -->
+        <div class="section-title">Programme overview</div>
+        <div class="grid grid-3eq">
+            <div class="card span-2" id="villageCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">🏘️ By village <span class="uc-chip" data-uc="triage"></span></div>
+                        <div class="card-subtitle">Click a row to zoom the map</div>
+                    </div>
+                </div>
+                <table id="villageTable"></table>
+            </div>
+            <div class="card" id="indicatorsCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">🎯 Joint Programme indicators <span class="uc-chip" data-uc="evidence"></span></div>
+                        <div class="card-subtitle">Targets from the ASTA Suriname programme document</div>
+                    </div>
+                </div>
+                <div id="indicators"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-2" style="margin-top:16px">
+            <div class="card" id="demoCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">⚖️ Demo vs. traditional plots <span class="uc-chip" data-uc="demo"></span></div>
+                        <div class="card-subtitle">Median vigor (NDVI) per week · gap = average of the last 12 weeks · same images, so no absolute calibration needed</div>
+                    </div>
+                    <span class="badge badge-green" id="demoGap"></span>
+                </div>
+                <div class="chart-box tall"><canvas id="demoChart"></canvas></div>
+            </div>
+            <div class="card" id="photoCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">📷 Photo diagnoses → ground truth <span class="uc-chip" data-uc="photo"></span></div>
+                        <div class="card-subtitle">Farmer photos by diagnosis · confirmed by a Hub technician or awaiting review</div>
+                    </div>
+                    <span class="badge badge-cyan" id="photoLabels"></span>
+                </div>
+                <div class="chart-box tall"><canvas id="photoChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="grid grid-2" style="margin-top:16px">
+            <div class="card" id="harvestCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">🍍 Expected harvest <span class="uc-chip" data-uc="harvest"></span></div>
+                        <div class="card-subtitle">From recorded flower-induction dates (~5.5 months to harvest) · ~26 t/ha (25 000 plants/ha, 80 % fruiting, 1.3 kg)</div>
+                    </div>
+                    <span class="badge badge-yellow">Phase 2 preview</span>
+                </div>
+                <div class="chart-box tall"><canvas id="harvestChart"></canvas></div>
+            </div>
+            <div class="card" id="qualityCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">🧪 Data quality <span class="uc-chip" data-uc="evidence"></span></div>
+                        <div class="card-subtitle">Why some report requests could not be completed (per month)</div>
+                    </div>
+                </div>
+                <div class="chart-box tall"><canvas id="qualityChart"></canvas></div>
+            </div>
+        </div>
+
+        <footer>
+            <b>Methodology.</b> Vigor = Sentinel-2 NDVI, leaf greenness = NDRE (B8/B5), leaf water = NDWI (B8/B11), 10–20 m, 14-day
+            cloud-masked composite (Cloud Score+ ≥ 0.60, ≥ 30 % of field clear). When no clear image exists, crop health and water use
+            Sentinel-1 radar (limited confidence) and nitrogen is unavailable. Pineapple thresholds are literature priors, not yet
+            calibrated on Suriname fields. Flood alerts use Sentinel-1 VV &lt; −18 dB.<br>
+            <b>Privacy.</b> Field-level views require farmers' consent to share with FAO. Aggregates suppress any district / week cell with
+            fewer than 3 farmers. Farmer names are never shown, only pseudonymous IDs.
+        </footer>
+    </main>
+
+    <!-- ============================ USE CASES VIEW ============================ -->
+    <main class="dashboard view" id="view-usecases" hidden>
+        <div class="hero">
+            <div class="tour-step">Suriname pineapple pilot · for discussion with FAO, UNIDO &amp; the Horticulture Innovation Hub</div>
+            <h2>A prioritized list of use cases</h2>
+            <p>Ten things the weekly satellite pass and the WhatsApp chat can do for the pineapple chain, ranked by the value
+            to the chain and by how ready they are today. Reorder them during the discussion: the final order decides what we
+            build and validate first.</p>
+            <div class="quote">“How does the Hub see every field, every week, without a technician standing in it?”</div>
+        </div>
+
+        <div class="section-title">Who benefits</div>
+        <div class="audience-row" id="audienceRow"></div>
+
+        <div class="section-title">Value vs. readiness</div>
+        <div class="grid grid-3">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">🧭 Priority matrix</div>
+                        <div class="card-subtitle">Top-right = start in Phase 1. Bubble size = farmers reached. Click a bubble to jump to the use case.</div>
+                    </div>
+                </div>
+                <div class="chart-box" style="height:360px"><canvas id="matrixChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-title">📏 How we ranked</div>
+                <ul class="criteria" style="margin-top:8px">
+                    <li><b>Value to the chain.</b> Does it save pineapples, technician time or money, or produce evidence a funder or buyer asks for?</li>
+                    <li><b>Ready today.</b> Live in the WhatsApp menu, a small addition, or a Phase 2 build.</li>
+                    <li><b>Works through clouds.</b> The Guiana Shield blocks optical images on 27–33 % of days (our 12-month replay). Radar, photos and weather do not care.</li>
+                    <li><b>Can be proven in Phase 1.</b> Maps to an exit condition: ≥ 70 % technician agreement, radar coverage in cloudy weeks, demo vs. traditional baseline.</li>
+                </ul>
+                <div class="question" style="margin-top:14px">Our ranking is a starting point. What loses the most pineapples today, and which villages are hardest hit, will move it.</div>
+            </div>
+        </div>
+
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+            <span>Ranked use cases</span>
+            <span style="display:flex;gap:8px;text-transform:none;letter-spacing:0">
+                <button class="btn" id="resetRank">↺ arandu ranking</button>
+                <button class="btn" id="printRank">🖨️ Print agreed list</button>
+            </span>
+        </div>
+        <div class="uc-list" id="ucList"></div>
+
+        <div class="section-title">Where each use case lands in the pilot</div>
+        <div class="phases" id="phaseGrid"></div>
+
+        <footer>
+            Rankings, reach and readiness are arandu's proposal for discussion. Cloud figures come from the Oct 2025 – Sep 2026 Sentinel-2
+            replay at Redi Doti and the savanna belt (14-day window: 67–73 % of days clear; 30-day window: 87–89 %). Radar was available on every
+            cloudy day. Photo diagnosis has not yet been validated on pineapple; Phase 1 measures it against technician labels.
+        </footer>
+    </main>
+
+    <!-- ============================ DEMO TOUR ============================ -->
+    <div class="tour-box" id="tourBox">
+        <div class="tour-step" id="tourStep"></div>
+        <h3 id="tourTitle"></h3>
+        <p id="tourBody"></p>
+        <div class="say" id="tourSay"></div>
+        <div class="tour-progress"><span id="tourBar"></span></div>
+        <div class="tour-nav">
+            <button class="btn" id="tourExit">✕ End</button>
+            <span id="tourUc"></span>
+            <span style="display:flex;gap:6px">
+                <button class="btn" id="tourPrev">←</button>
+                <button class="btn btn-primary" id="tourNext">Next →</button>
+            </span>
+        </div>
+    </div>
+
+    <!-- ============================ PDF MODAL ============================ -->
+    <div class="modal-backdrop" id="pdfModal">
+        <div class="modal">
+            <h2>📄 Generate PDF report</h2>
+            <div class="card-subtitle">Reports are built from the same aggregated, privacy-filtered data as this dashboard.</div>
+
+            <div class="tpl-grid" id="tplGrid">
+                <div class="tpl active" data-tpl="monthly"><b>Monthly programme report</b>KPIs, map, alerts, climate &amp; satellite availability, Joint Programme indicators</div>
+                <div class="tpl" data-tpl="district"><b>District / village summary</b>One page per village: fields, hectares, status mix, recommended field visits</div>
+                <div class="tpl" data-tpl="field"><b>Field dossier</b>Selected field: outline, 12-month NDVI / NDRE / NDWI, reports sent, photos (consented fields only)</div>
+                <div class="tpl" data-tpl="donor"><b>Donor indicator annex</b>Joint SDG Fund results framework: farmers, hectares, women-led share, forest preserved</div>
+            </div>
+
+            <div class="form-row">
+                <label>Period
+                    <select class="btn" id="pdfPeriod">
+                        <option>September 2026</option>
+                        <option>Q3 2026 (Jul–Sep)</option>
+                        <option>Pilot to date</option>
+                        <option>Custom range…</option>
+                    </select>
+                </label>
+                <label>Scope
+                    <select class="btn">
+                        <option>All pilot villages</option>
+                        <option>Para</option>
+                        <option>Marowijne</option>
+                        <option>Selected field</option>
+                    </select>
+                </label>
+            </div>
+            <div class="form-row">
+                <label>Language
+                    <select class="btn">
+                        <option>English</option>
+                        <option>Nederlands</option>
+                    </select>
+                </label>
+                <label>Privacy level
+                    <select class="btn">
+                        <option>Aggregates only (≥ 3 farmers)</option>
+                        <option>Include consented field details</option>
+                    </select>
+                </label>
+            </div>
+
+            <label class="small muted">Sections</label>
+            <div class="checks">
+                <label><input type="checkbox" checked> Headline KPIs</label>
+                <label><input type="checkbox" checked> Map snapshot</label>
+                <label><input type="checkbox" checked> Fields needing action</label>
+                <label><input type="checkbox" checked> Climate &amp; satellite availability</label>
+                <label><input type="checkbox" checked> Usage statistics</label>
+                <label><input type="checkbox"> Expected harvest (preview)</label>
+                <label><input type="checkbox" checked> Joint Programme indicators</label>
+                <label><input type="checkbox" checked> Methodology &amp; limitations</label>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn" id="closePdf">Cancel</button>
+                <button class="btn" id="schedulePdf">🗓️ Email monthly</button>
+                <button class="btn btn-primary" id="printPdf">Preview &amp; save PDF</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+    /* ============================================================
+       1. MOCK DATA (deterministic)
+       ============================================================ */
+    function mulberry32(a) {
+        return function () {
+            a |= 0; a = (a + 0x6D2B79F5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+    const rnd = mulberry32(20261005);
+    const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+    const between = (a, b) => a + rnd() * (b - a);
+
+    const TODAY = new Date('2026-10-05');
+    const MONTHS = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
+
+    // Real replay (Oct 2025 – Sep 2026): share of days with a clear 14-day Sentinel-2 report.
+    const CLEAR_EAST = [1.00, 0.83, 0.58, 0.48, 0.43, 0.10, 0.43, 0.55, 0.63, 0.94, 1.00, 1.00];
+    const CLEAR_WEST = [1.00, 1.00, 0.65, 0.77, 1.00, 0.42, 0.87, 0.55, 0.00, 0.48, 1.00, 1.00];
+    const RAIN_MM = [95, 120, 205, 215, 160, 175, 245, 335, 305, 225, 160, 90];
+    const RAIN_NORMAL = [85, 125, 190, 200, 155, 165, 230, 310, 290, 230, 155, 95];
+
+    const VILLAGES = [
+        { name: 'Redi Doti', district: 'Para', lat: 5.4290, lng: -54.9700, n: 18, side: 'east' },
+        { name: 'Cassipora', district: 'Para', lat: 5.3920, lng: -54.9480, n: 9, side: 'east' },
+        { name: 'Pierrekondre', district: 'Para', lat: 5.4630, lng: -55.0020, n: 10, side: 'east' },
+        { name: 'Powakka', district: 'Para', lat: 5.4360, lng: -55.0750, n: 14, side: 'west' },
+        { name: 'Matta', district: 'Para', lat: 5.3700, lng: -55.2150, n: 16, side: 'west' },
+        { name: 'Bigi Poika', district: 'Para', lat: 5.2700, lng: -55.3000, n: 8, side: 'west' },
+        { name: 'Moengo area', district: 'Marowijne', lat: 5.6150, lng: -54.4100, n: 10, side: 'east' },
+    ];
+
+    const STATUS = {
+        good:      { label: 'Looking good',  icon: '🟢', color: '#4ade80', badge: 'badge-green' },
+        watch:     { label: 'Monitor',       icon: '🟡', color: '#facc15', badge: 'badge-yellow' },
+        attention: { label: 'Needs attention', icon: '🟠', color: '#f97316', badge: 'badge-orange' },
+        act:       { label: 'Act now',       icon: '🔴', color: '#ef4444', badge: 'badge-red' },
+    };
+    const ISSUES = {
+        good: ['Vigor stable and uniform across the field', 'Steady growth, in line with neighbouring fields'],
+        watch: ['Vigor slightly declining over the last 4 weeks', 'Radar-only reading — no clear image in the last 14 days'],
+        attention: ['Low-vigor patch in the north-east corner (12 % of field)', 'Leaf greenness below neighbouring fields', 'Leaves drying faster than usual for the dry season'],
+        act: ['Standing water on 18 % of the field (radar, 1 Oct)', 'Sharp vigor drop in the north-west — possible wilt; ask for a photo'],
+    };
+    const REPORT_TYPES = [
+        ['🌿 Crop health', 5], ['🧪 Leaf greenness (N)', 2], ['💧 Water', 2], ['🌊 Flood', 2],
+        ['📷 Photo diagnosis', 2], ['🌦️ Weather', 4], ['⚖️ Field comparison', 1],
+    ];
+    const VARIETIES = ['Ingi Nasi', 'Stuger', 'Smooth Cayenne'];
+
+    function weightedStatus() {
+        const r = rnd();
+        if (r < 0.58) return 'good';
+        if (r < 0.78) return 'watch';
+        if (r < 0.94) return 'attention';
+        return 'act';
+    }
+
+    function monthIdx(d) { return (d.getMonth() - 9 + 12) % 12; }
+
+    function buildSeries(status, side, isDemo) {
+        const clear = side === 'east' ? CLEAR_EAST : CLEAR_WEST;
+        const base = between(0.42, 0.55);
+        const labels = [], ndvi = [], ndre = [], ndwi = [];
+        const start = new Date('2025-10-06');
+        const decline = { good: 0, watch: 0.035, attention: between(0.07, 0.11), act: between(0.12, 0.18) }[status];
+        for (let w = 0; w < 52; w++) {
+            const d = new Date(start.getTime() + w * 7 * 86400000);
+            labels.push(d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
+            const seasonal = 0.04 * Math.sin(2 * Math.PI * (w - 24) / 52);
+            const tail = w >= 46 ? decline * (w - 45) / 6 : 0;
+            const demoLift = isDemo ? 0.06 * Math.min(1, w / 30) : 0;
+            const v = base + seasonal + demoLift - tail + (rnd() - 0.5) * 0.025;
+            const visible = rnd() < clear[monthIdx(d)] * 0.9 + 0.05;
+            ndvi.push(visible ? +v.toFixed(3) : null);
+            ndre.push(visible ? +(v * 0.7 - 0.06 + (rnd() - 0.5) * 0.02).toFixed(3) : null);
+            ndwi.push(visible ? +(v * 0.38 - 0.08 + 0.03 * Math.sin(2 * Math.PI * (w - 26) / 52) + (rnd() - 0.5) * 0.02).toFixed(3) : null);
+        }
+        // Guarantee the latest point is observed so the panel always has a "now" value.
+        const last = 51;
+        if (ndvi[last] === null) {
+            const v = base + (isDemo ? 0.06 : 0) - decline;
+            ndvi[last] = +v.toFixed(3); ndre[last] = +(v * 0.7 - 0.06).toFixed(3); ndwi[last] = +(v * 0.38 - 0.06).toFixed(3);
+        }
+        return { labels, ndvi, ndre, ndwi };
+    }
+
+    function rectPolygon(lat, lng, areaHa, angleDeg) {
+        const aspect = between(1.0, 2.6);
+        const w = Math.sqrt(areaHa * 10000 / aspect), h = w * aspect;
+        const a = angleDeg * Math.PI / 180;
+        const corners = [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]];
+        const mLat = 111320, mLng = 111320 * Math.cos(lat * Math.PI / 180);
+        return corners.map(([x, y]) => {
+            const xr = x * Math.cos(a) - y * Math.sin(a);
+            const yr = x * Math.sin(a) + y * Math.cos(a);
+            return [lat + yr / mLat, lng + xr / mLng];
+        });
+    }
+
+    const FIELDS = [];
+    let farmerSeq = 0;
+    VILLAGES.forEach((v, vi) => {
+        let lastFarmer = null;
+        for (let i = 0; i < v.n; i++) {
+            const isDemo = rnd() < 0.24;
+            const area = isDemo ? 1.0 : +between(0.3, 3.4).toFixed(2);
+            const r = between(250, 2600), th = rnd() * 2 * Math.PI;
+            const lat = v.lat + (r * Math.sin(th)) / 111320;
+            const lng = v.lng + (r * Math.cos(th)) / (111320 * Math.cos(v.lat * Math.PI / 180));
+            const status = weightedStatus();
+            const series = buildSeries(status, v.side, isDemo);
+            const sameFarmer = lastFarmer && rnd() < 0.25;
+            const farmer = sameFarmer ? lastFarmer : `F-${String(++farmerSeq).padStart(3, '0')}`;
+            lastFarmer = farmer;
+            const plantedMonthsAgo = Math.floor(between(3, 20));
+            const planted = new Date(TODAY.getFullYear(), TODAY.getMonth() - plantedMonthsAgo, Math.floor(between(1, 28)));
+            const forcedAt = new Date(planted.getFullYear(), planted.getMonth() + Math.floor(between(9, 13)), Math.floor(between(1, 28)));
+            const forced = forcedAt < TODAY && rnd() < 0.85 ? forcedAt : null;
+            const opticalAge = status === 'watch' && rnd() < 0.5 ? Math.floor(between(15, 26)) : Math.floor(between(1, 8));
+            const reports = [];
+            const nRep = 2 + Math.floor(rnd() * 4);
+            for (let k = 0; k < nRep; k++) {
+                const t = pick(REPORT_TYPES.flatMap(([name, wgt]) => Array(wgt).fill(name)));
+                const ago = Math.floor(between(1, 60));
+                reports.push({ type: t, date: new Date(TODAY.getTime() - ago * 86400000), status: k === 0 ? status : weightedStatus() });
+            }
+            reports.sort((a, b) => b.date - a.date);
+            FIELDS.push({
+                id: `SR-${v.district === 'Para' ? 'PA' : 'MA'}-${String(vi + 1)}${String(i + 1).padStart(2, '0')}`,
+                village: v.name, district: v.district, side: v.side,
+                farmer, womenLed: rnd() < 0.34, type: isDemo ? 'demo' : 'traditional',
+                variety: pick(VARIETIES), areaHa: area,
+                polygon: rectPolygon(lat, lng, area, between(-25, 25)), center: [lat, lng],
+                status, issue: pick(ISSUES[status]), series, planted, forced, opticalAge,
+                source: opticalAge > 14 ? 'Radar (Sentinel-1)' : 'Optical (Sentinel-2)',
+                reports,
+                forestFlag: rnd() < 0.03,
+            });
+        }
+    });
+
+    // The demo tour opens this field: radar-detected waterlogging after the late-September rains.
+    const STORY_FIELD = FIELDS.find(f => f.status === 'act' && f.village === 'Redi Doti') || FIELDS.find(f => f.status === 'act');
+    STORY_FIELD.issue = 'Standing water on 18 % of the field (radar, 1 Oct)';
+    FIELDS.filter(f => f.status === 'act' && f !== STORY_FIELD).forEach((f, i) => {
+        f.issue = i % 2 ? 'Standing water on 9 % of the field (radar, 29 Sep)' : ISSUES.act[1];
+    });
+
+    const DIAG = {
+        rot:   { label: 'Heart / root rot', color: '#ef4444' },
+        wilt:  { label: 'Mealybug wilt', color: '#f97316' },
+        mealy: { label: 'Mealybugs, no wilt yet', color: '#facc15' },
+        fusa:  { label: 'Fusariosis', color: '#a855f7' },
+        sun:   { label: 'Sunburn', color: '#f472b6' },
+        ok:    { label: 'No problem found', color: '#4ade80' },
+    };
+    const PHOTOS = [];
+    FIELDS.forEach(f => {
+        const waterlogged = f.issue.startsWith('Standing water');
+        const p = waterlogged ? 1 : f.status === 'attention' ? 0.7 : f.status === 'act' ? 0.9 : 0.28;
+        if (rnd() > p) return;
+        let dx;
+        if (waterlogged) dx = rnd() < 0.8 ? 'rot' : 'fusa';
+        else if (f.status === 'act' || f.status === 'attention') dx = pick(['wilt', 'wilt', 'mealy', 'rot', 'fusa', 'sun']);
+        else dx = pick(['ok', 'ok', 'ok', 'mealy', 'sun']);
+        PHOTOS.push({
+            field: f, dx, confirmed: rnd() < 0.62,
+            date: new Date(TODAY.getTime() - Math.floor(between(1, 45)) * 86400000),
+            latlng: [f.center[0] + (rnd() - 0.5) * 0.0012, f.center[1] + (rnd() - 0.5) * 0.0012],
+        });
+        f.photo = PHOTOS[PHOTOS.length - 1];
+    });
+    Object.assign(STORY_FIELD.photo, { dx: 'rot', confirmed: true, date: new Date(TODAY.getTime() - 2 * 86400000) });
+
+    /* ============================================================
+       2. HELPERS
+       ============================================================ */
+    const fmtDate = (d) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const monthsBetween = (a, b) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+    const lastVal = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i] !== null) return arr[i]; return null; };
+    const sum = (arr, f) => arr.reduce((s, x) => s + f(x), 0);
+    const uniq = (arr) => [...new Set(arr)];
+
+    let districtFilter = 'all', typeFilter = 'all', colorMode = 'status';
+    const visibleFields = () => FIELDS.filter(f =>
+        (districtFilter === 'all' || f.district === districtFilter) &&
+        (typeFilter === 'all' || f.type === typeFilter));
+    const visiblePhotos = () => {
+        const ids = new Set(visibleFields().map(f => f.id));
+        return PHOTOS.filter(p => ids.has(p.field.id));
+    };
+
+    function stageLabel(f) {
+        if (f.forced) {
+            const m = monthsBetween(f.forced, TODAY);
+            if (m >= 5) return 'Fruit maturing — harvest in ~2–4 weeks';
+            if (m >= 2) return `Fruit development (${m} mo after induction)`;
+            return 'Flowering after induction';
+        }
+        const m = monthsBetween(f.planted, TODAY);
+        return m < 6 ? `Young plants (${m} mo after planting)` : `Vegetative growth (${m} mo after planting)`;
+    }
+
+    function ndviColor(v) {
+        if (v === null) return '#52525b';
+        const stops = [[0.30, [239, 68, 68]], [0.40, [249, 115, 22]], [0.47, [250, 204, 21]], [0.55, [74, 222, 128]], [0.62, [22, 163, 74]]];
+        if (v <= stops[0][0]) return `rgb(${stops[0][1]})`;
+        for (let i = 1; i < stops.length; i++) {
+            if (v <= stops[i][0]) {
+                const [a, ca] = stops[i - 1], [b, cb] = stops[i], t = (v - a) / (b - a);
+                return `rgb(${ca.map((c, j) => Math.round(c + (cb[j] - c) * t))})`;
+            }
+        }
+        return `rgb(${stops[stops.length - 1][1]})`;
+    }
+    const freshColor = (d) => d <= 7 ? '#4ade80' : d <= 14 ? '#facc15' : '#f97316';
+    // Pineapple NDRE cutoffs from config: risk 0.18, ceiling 0.40 → 0.18 / 0.2533 / 0.3267.
+    const ndreColor = (v) => v === null ? '#52525b' : v < 0.18 ? '#ef4444' : v < 0.2533 ? '#f97316' : v < 0.3267 ? '#facc15' : '#4ade80';
+    function fieldColor(f) {
+        if (colorMode === 'ndvi') return ndviColor(lastVal(f.series.ndvi));
+        if (colorMode === 'ndre') return ndreColor(lastVal(f.series.ndre));
+        if (colorMode === 'fresh') return freshColor(f.opticalAge);
+        return STATUS[f.status].color;
+    }
+
+    /* ============================================================
+       3. KPIs
+       ============================================================ */
+    function renderKpis() {
+        const fs = visibleFields();
+        const ha = sum(fs, f => f.areaHa);
+        const farmers = uniq(fs.map(f => f.farmer)).length;
+        const atRisk = fs.filter(f => f.status === 'attention' || f.status === 'act');
+        const act = fs.filter(f => f.status === 'act').length;
+        const fresh = fs.filter(f => f.opticalAge <= 14).length;
+        const photos30 = visiblePhotos().filter(p => TODAY - p.date <= 30 * 86400000);
+        const cards = [
+            ['👩‍🌾', 'Farmers enrolled', farmers, `<span class="up">+7</span> this month · ${Math.round(100 * uniq(fs.filter(f => f.womenLed).map(f => f.farmer)).length / Math.max(farmers, 1))} % women-led`],
+            ['🍍', 'Fields monitored', fs.length, `${fs.filter(f => f.type === 'demo').length} demo plots · ${fs.filter(f => f.type === 'traditional').length} traditional`],
+            ['📐', 'Hectares under monitoring', `${ha.toFixed(1)} <small>ha</small>`, `<div class="progress"><span style="width:${Math.min(100, ha / 335 * 100)}%"></span></div>${Math.round(ha / 335 * 100)} % of the 335 ha programme target`],
+            ['🚨', 'Fields needing action', `<span class="warn">${atRisk.length}</span>`, `🟠 ${atRisk.length - act} · 🔴 ${act} · ${(sum(atRisk, f => f.areaHa)).toFixed(1)} ha affected`],
+            ['📨', 'Reports delivered (30 d)', 412, '<span class="up">91 %</span> of 452 requests delivered'],
+            ['📷', 'Photo diagnoses (30 d)', photos30.length, `${photos30.filter(p => p.dx === 'rot' || p.dx === 'wilt').length} flagged possible wilt / rot`],
+            ['🛰️', 'Fields with fresh clear image', `${fresh}<small> / ${fs.length}</small>`, 'Clear Sentinel-2 image in the last 14 days'],
+            ['📡', 'Radar-only reports (30 d)', '6 %', 'Pilot-to-date 18 % · peaks Dec–Jun'],
+        ];
+        document.getElementById('kpis').innerHTML = cards.map(([icon, label, value, sub]) => `
+            <div class="kpi-card">
+                <span class="kpi-icon">${icon}</span>
+                <div class="kpi-label">${label}</div>
+                <div class="kpi-value">${value}</div>
+                <div class="kpi-sub">${sub}</div>
+            </div>`).join('');
+    }
+
+    /* ============================================================
+       4. MAP
+       ============================================================ */
+    const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([4.1, -55.9], 7);
+    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Imagery &copy; Esri', maxZoom: 19,
+    }).addTo(map);
+    const light = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri', maxZoom: 16,
+    });
+    L.control.layers({ 'Satellite': sat, 'Light map': light }, null, { position: 'topright' }).addTo(map);
+
+    const fieldLayer = L.layerGroup().addTo(map);
+    const villageLayer = L.layerGroup().addTo(map);
+    const polygons = {};
+    let selectedId = null;
+    const FIELD_ZOOM = 12;
+
+    function pilotBounds(fs) {
+        return L.latLngBounds(fs.flatMap(f => f.polygon));
+    }
+
+    function renderMap() {
+        fieldLayer.clearLayers(); villageLayer.clearLayers();
+        const fs = visibleFields();
+        fs.forEach(f => {
+            const poly = L.polygon(f.polygon, {
+                color: f.id === selectedId ? '#ffffff' : fieldColor(f),
+                weight: f.id === selectedId ? 3 : 1.2,
+                fillColor: fieldColor(f), fillOpacity: 0.55,
+            });
+            poly.bindTooltip(`<b>${f.id}</b> · ${f.village}<br>${STATUS[f.status].icon} ${STATUS[f.status].label} · ${f.areaHa} ha`, { sticky: true });
+            poly.on('click', () => selectField(f.id));
+            polygons[f.id] = poly;
+            fieldLayer.addLayer(poly);
+        });
+        VILLAGES.forEach(v => {
+            const vf = fs.filter(f => f.village === v.name);
+            if (!vf.length) return;
+            const ha = sum(vf, f => f.areaHa);
+            const risk = vf.filter(f => f.status === 'attention' || f.status === 'act').length;
+            const share = risk / vf.length;
+            const c = share >= 0.3 ? '#f97316' : share >= 0.15 ? '#facc15' : '#4ade80';
+            const m = L.circleMarker([v.lat, v.lng], {
+                radius: 7 + Math.sqrt(ha) * 2.2, color: c, weight: 2, fillColor: c, fillOpacity: 0.3,
+            });
+            m.bindTooltip(`<b>${v.name}</b> (${v.district})<br>${vf.length} fields · ${ha.toFixed(1)} ha<br>${risk ? `🟠🔴 ${risk} need action (${Math.round(share * 100)} %)` : '🟢 no fields need action'}`);
+            m.on('click', () => map.fitBounds(pilotBounds(vf), { padding: [30, 30] }));
+            villageLayer.addLayer(m);
+        });
+        renderPhotoLayer();
+        updateLayerVisibility();
+        renderLegend();
+    }
+
+    const photoLayer = L.layerGroup();
+    let showPhotos = false;
+    function renderPhotoLayer() {
+        photoLayer.clearLayers();
+        visiblePhotos().forEach(p => {
+            const d = DIAG[p.dx];
+            const m = L.circleMarker(p.latlng, {
+                radius: 6, color: '#fff', weight: p.confirmed ? 2 : 1, dashArray: p.confirmed ? null : '2 2',
+                fillColor: d.color, fillOpacity: 0.95,
+            });
+            m.bindTooltip(`📷 <b>${d.label}</b><br>${p.field.id} · ${p.field.village} · ${fmtDate(p.date)}<br>${p.confirmed ? '✅ confirmed by Hub technician' : '⏳ awaiting technician review'}`);
+            m.on('click', () => selectField(p.field.id));
+            photoLayer.addLayer(m);
+        });
+    }
+    function setPhotos(on) {
+        showPhotos = on;
+        document.getElementById('photoToggle').classList.toggle('btn-primary', on);
+        if (on) photoLayer.addTo(map); else map.removeLayer(photoLayer);
+        renderLegend();
+    }
+    document.getElementById('photoToggle').onclick = () => setPhotos(!showPhotos);
+
+    function updateLayerVisibility() {
+        const showFields = map.getZoom() >= FIELD_ZOOM;
+        if (showFields) { if (!map.hasLayer(fieldLayer)) map.addLayer(fieldLayer); map.removeLayer(villageLayer); }
+        else { if (!map.hasLayer(villageLayer)) map.addLayer(villageLayer); map.removeLayer(fieldLayer); }
+    }
+    map.on('zoomend', updateLayerVisibility);
+
+    function renderLegend() {
+        const el = document.getElementById('legend');
+        let rows;
+        if (colorMode === 'ndvi') {
+            rows = [['#16a34a', '≥ 0.56 excellent'], ['#4ade80', '0.45 – 0.56 good'], ['#facc15', '0.40 – 0.45'], ['#f97316', '0.32 – 0.40 low'], ['#ef4444', '< 0.32 very low']];
+        } else if (colorMode === 'ndre') {
+            rows = [['#4ade80', '≥ 0.33 good'], ['#facc15', '0.25 – 0.33 moderate'], ['#f97316', '0.18 – 0.25 low'], ['#ef4444', '< 0.18 deficiency risk']];
+        } else if (colorMode === 'fresh') {
+            rows = [['#4ade80', '≤ 7 days'], ['#facc15', '8 – 14 days'], ['#f97316', '> 14 days (radar only)']];
+        } else {
+            rows = Object.values(STATUS).map(s => [s.color, `${s.icon} ${s.label}`]);
+        }
+        const title = { status: 'Latest report status', ndvi: 'Vigor (NDVI, pineapple scale)', ndre: 'Leaf greenness (NDRE, uncalibrated)', fresh: 'Age of last clear image' }[colorMode];
+        const photoRows = showPhotos
+            ? `<div style="margin-top:8px"><b style="color:var(--text-primary)">📷 Photo diagnoses</b></div>` +
+              Object.values(DIAG).map(d => `<div class="legend-row"><span class="swatch" style="background:${d.color};border-radius:50%"></span>${d.label}</div>`).join('') +
+              `<div class="legend-row muted">solid ring = technician confirmed</div>`
+            : '';
+        el.innerHTML = `<b style="color:var(--text-primary)">${title}</b>` +
+            rows.map(([c, l]) => `<div class="legend-row"><span class="swatch" style="background:${c}"></span>${l}</div>`).join('') + photoRows +
+            `<div class="muted" style="margin-top:8px">Village circles: share of fields at 🟠/🔴<br>
+             <span style="color:var(--text-green)">&lt;15 %</span> · <span style="color:var(--text-yellow)">15–30 %</span> · <span style="color:var(--text-orange)">≥30 %</span></div>` +
+            `<div class="legend-row muted">Zoom ≥ ${FIELD_ZOOM} for field outlines</div>`;
+    }
+
+    document.getElementById('zoomPilot').onclick = () => map.fitBounds(pilotBounds(visibleFields()), { padding: [30, 30] });
+    document.querySelectorAll('#colorMode button').forEach(b => b.onclick = () => {
+        document.querySelectorAll('#colorMode button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active'); colorMode = b.dataset.mode; renderMap();
+    });
+    document.querySelectorAll('#typeFilter button').forEach(b => b.onclick = () => {
+        document.querySelectorAll('#typeFilter button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active'); typeFilter = b.dataset.type; refreshAll();
+    });
+    document.getElementById('districtSel').onchange = (e) => { districtFilter = e.target.value; refreshAll(); };
+
+    const search = document.getElementById('fieldSearch');
+    document.getElementById('fieldList').innerHTML = FIELDS.map(f => `<option value="${f.id}">${f.village} · ${f.areaHa} ha</option>`).join('') +
+        VILLAGES.map(v => `<option value="${v.name}">village</option>`).join('');
+    search.addEventListener('change', () => {
+        const q = search.value.trim().toLowerCase();
+        const f = FIELDS.find(x => x.id.toLowerCase() === q);
+        if (f) { selectField(f.id, true); return; }
+        const v = VILLAGES.find(x => x.name.toLowerCase() === q);
+        if (v) map.fitBounds(pilotBounds(FIELDS.filter(x => x.village === v.name)), { padding: [30, 30] });
+    });
+
+    /* ============================================================
+       5. FIELD PANEL
+       ============================================================ */
+    let fieldChart = null;
+
+    function renderPanelOverview() {
+        const fs = visibleFields();
+        const counts = Object.keys(STATUS).map(k => [k, fs.filter(f => f.status === k).length]);
+        document.getElementById('fieldPanelBody').innerHTML = `
+            <div class="card-title">🍍 Pilot overview</div>
+            <div class="card-subtitle">Select a field on the map, in the alerts list, or via search</div>
+            <div class="facts">
+                ${counts.map(([k, n]) => `<div class="fact"><b>${STATUS[k].icon} ${n}</b><span>${STATUS[k].label}</span></div>`).join('')}
+            </div>
+            <div class="empty-state">
+                <p style="margin-bottom:10px"><b>What the farmer receives.</b> Every field below has been registered by a farmer on WhatsApp.
+                Reports arrive in Dutch or Sranantongo with a 🟢🟡🟠🔴 status, the image date, and one concrete action.</p>
+                <p><b>Reading the trends.</b> Gaps in the lines are periods with no clear Sentinel-2 image (clouds). During those
+                weeks farmers receive radar-based crop health and water readings, and leaf-greenness (nitrogen) is skipped.</p>
+            </div>`;
+    }
+
+    function selectField(id, zoom = false) {
+        selectedId = id;
+        const f = FIELDS.find(x => x.id === id);
+        renderMap();
+        if (zoom || map.getZoom() < FIELD_ZOOM) map.fitBounds(L.latLngBounds(f.polygon).pad(3), { maxZoom: 16 });
+        const s = STATUS[f.status];
+        const nd = lastVal(f.series.ndvi), nr = lastVal(f.series.ndre), nw = lastVal(f.series.ndwi);
+        document.getElementById('fieldPanelBody').innerHTML = `
+            <div class="field-head">
+                <div>
+                    <div class="field-name">${f.id}</div>
+                    <div class="card-subtitle">${f.village}, ${f.district} · farmer ${f.farmer}${f.womenLed ? ' · women-led' : ''}</div>
+                </div>
+                <span class="badge ${f.type === 'demo' ? 'badge-cyan' : 'badge-grey'}">${f.type === 'demo' ? 'Demo plot' : 'Traditional'}</span>
+            </div>
+            <div class="status-box" style="background:${s.color}14;border-color:${s.color}55">
+                <b>${s.icon} ${s.label}</b><br>${f.issue}
+                <div class="small muted" style="margin-top:4px">${f.issue.includes('radar')
+                    ? `Sentinel-1 radar pass (sees through cloud) · last clear optical image ${fmtDate(new Date(TODAY.getTime() - f.opticalAge * 86400000))}`
+                    : `Latest image ${fmtDate(new Date(TODAY.getTime() - f.opticalAge * 86400000))} · ${f.source}`}</div>
+            </div>
+            ${f.photo ? `<div class="status-box" style="background:${DIAG[f.photo.dx].color}10;border-color:${DIAG[f.photo.dx].color}55">
+                📷 <b>Farmer photo, ${fmtDate(f.photo.date)}:</b> ${DIAG[f.photo.dx].label}
+                <span class="muted">· ${f.photo.confirmed ? '✅ confirmed by Hub technician' : '⏳ awaiting technician review'}</span></div>` : ''}
+            <div class="idx-row">
+                <div class="idx"><b style="color:#16a34a">${nd.toFixed(2)}</b><span>Vigor · NDVI</span></div>
+                <div class="idx"><b style="color:#0891b2">${nr.toFixed(2)}</b><span>Leaf greenness · NDRE</span></div>
+                <div class="idx"><b style="color:#6366f1">${nw.toFixed(2)}</b><span>Leaf water · NDWI</span></div>
+            </div>
+            <div class="small muted" style="margin-bottom:4px">12-month trend · dashed = pineapple reference (NDVI good 0.45, NDRE risk 0.18)</div>
+            <div class="chart-box"><canvas id="fieldChart"></canvas></div>
+            <div class="facts">
+                <div class="fact"><b>${f.areaHa} ha</b><span>Area</span></div>
+                <div class="fact"><b>${f.variety}</b><span>Variety</span></div>
+                <div class="fact"><b>${fmtDate(f.planted)}</b><span>Planted</span></div>
+                <div class="fact"><b>${f.forced ? fmtDate(f.forced) : '—'}</b><span>Flower induction</span></div>
+                <div class="fact" style="grid-column:span 2"><b>${stageLabel(f)}</b><span>Crop stage (from recorded dates)</span></div>
+            </div>
+            ${f.forestFlag ? '<div class="status-box" style="background:#f9731614;border-color:#f9731655">🌳 <b>Forest check:</b> part of this field overlaps tree-cover loss after 2020. Please verify with the farmer.</div>' : ''}
+            <div class="card-title" style="font-size:0.85rem">💬 Reports sent on WhatsApp</div>
+            <ul class="report-list">
+                ${f.reports.map(r => `<li><span>${r.type}</span><span>${STATUS[r.status].icon} ${fmtDate(r.date)}</span></li>`).join('')}
+            </ul>
+            <div style="display:flex;gap:8px;margin-top:14px">
+                <button class="btn" onclick="openPdf('field')">📄 Field dossier PDF</button>
+                <button class="btn" onclick="selectedId=null;renderMap();renderPanelOverview()">✕ Close</button>
+            </div>`;
+        drawFieldChart(f);
+    }
+
+    function drawFieldChart(f) {
+        if (fieldChart) fieldChart.destroy();
+        const n = f.series.labels.length;
+        fieldChart = new Chart(document.getElementById('fieldChart'), {
+            type: 'line',
+            data: {
+                labels: f.series.labels,
+                datasets: [
+                    { label: 'NDVI', data: f.series.ndvi, borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.3, pointRadius: 1.5, spanGaps: false },
+                    { label: 'NDRE', data: f.series.ndre, borderColor: '#0891b2', backgroundColor: '#0891b2', tension: 0.3, pointRadius: 1.5, spanGaps: false },
+                    { label: 'NDWI', data: f.series.ndwi, borderColor: '#6366f1', backgroundColor: '#6366f1', tension: 0.3, pointRadius: 1.5, spanGaps: false },
+                    { label: 'NDVI good', data: Array(n).fill(0.45), borderColor: 'rgba(22,163,74,0.45)', borderDash: [5, 5], pointRadius: 0, borderWidth: 1 },
+                    { label: 'NDRE risk', data: Array(n).fill(0.18), borderColor: 'rgba(249,115,22,0.45)', borderDash: [5, 5], pointRadius: 0, borderWidth: 1 },
+                ],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { labels: { filter: (i) => !i.text.includes('good') && !i.text.includes('risk'), boxWidth: 10 } } },
+                scales: { y: { min: -0.1, max: 0.7, ticks: { stepSize: 0.1, callback: (v) => (Math.abs(v) < 1e-9 ? '0' : v.toFixed(1)) } }, x: { ticks: { maxTicksLimit: 7 } } },
+            },
+        });
+    }
+
+    /* ============================================================
+       6. ALERTS + CLIMATE
+       ============================================================ */
+    function renderAlerts() {
+        const order = { act: 0, attention: 1 };
+        const fs = visibleFields().filter(f => f.status in order).sort((a, b) => order[a.status] - order[b.status]);
+        document.getElementById('alertList').innerHTML = fs.length ? fs.map(f => `
+            <div class="alert-item" onclick="selectField('${f.id}', true)">
+                <span>${STATUS[f.status].icon}</span>
+                <div><b>${f.id}</b> · ${f.village} · ${f.areaHa} ha<br><span class="muted">${f.issue}</span></div>
+            </div>`).join('') : '<div class="empty-state">No fields need action.</div>';
+    }
+
+    Chart.defaults.color = '#475569';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.borderColor = 'rgba(15,23,42,0.08)';
+
+    new Chart(document.getElementById('climateChart'), {
+        data: {
+            labels: MONTHS,
+            datasets: [
+                { type: 'bar', label: 'Rainfall 2025/26 (mm)', data: RAIN_MM, backgroundColor: 'rgba(6,182,212,0.45)', borderRadius: 4, yAxisID: 'y' },
+                { type: 'line', label: 'Normal rainfall (mm)', data: RAIN_NORMAL, borderColor: 'rgba(15,23,42,0.45)', borderDash: [4, 4], pointRadius: 0, yAxisID: 'y' },
+                { type: 'line', label: 'Clear-report days · Redi Doti (%)', data: CLEAR_EAST.map(x => Math.round(x * 100)), borderColor: '#16a34a', backgroundColor: '#16a34a', cubicInterpolationMode: 'monotone', yAxisID: 'y1' },
+                { type: 'line', label: 'Clear-report days · savanna belt W (%)', data: CLEAR_WEST.map(x => Math.round(x * 100)), borderColor: '#ca8a04', backgroundColor: '#ca8a04', cubicInterpolationMode: 'monotone', yAxisID: 'y1' },
+            ],
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { boxWidth: 10 } } },
+            scales: {
+                y: { title: { display: true, text: 'mm' }, beginAtZero: true },
+                y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '% of days' } },
+            },
+        },
+    });
+
+    const FORECAST = [
+        ['Mon 5', '☀️', 33, 23, 0, 'good'], ['Tue 6', '⛅', 32, 23, 1, 'good'], ['Wed 7', '🌦️', 31, 23, 6, 'fair'],
+        ['Thu 8', '⛅', 32, 22, 2, 'good'], ['Fri 9', '☀️', 33, 23, 0, 'good'], ['Sat 10', '⛈️', 30, 23, 18, 'poor'],
+        ['Sun 11', '🌦️', 31, 23, 7, 'fair'],
+    ];
+    const sprayBadge = { good: 'badge-green', fair: 'badge-yellow', poor: 'badge-red' };
+    document.getElementById('forecast').innerHTML = FORECAST.map(([d, ico, hi, lo, mm, spray]) => `
+        <div class="day"><div class="muted">${d}</div><div class="ico">${ico}</div>
+        <b>${hi}°</b> <span class="muted">${lo}°</span><div class="muted">${mm} mm</div>
+        <div class="spray"><span class="badge ${sprayBadge[spray]}">spray ${spray}</span></div></div>`).join('');
+
+    /* ============================================================
+       7. USAGE + STATUS
+       ============================================================ */
+    const weeks = Array.from({ length: 12 }, (_, i) => `W${29 + i}`);
+    const usageSeries = [
+        ['Crop health', '#4ade80', [14, 16, 18, 15, 20, 22, 24, 21, 26, 28, 27, 30]],
+        ['Leaf greenness', '#06b6d4', [4, 5, 5, 4, 6, 6, 7, 6, 8, 7, 8, 8]],
+        ['Water', '#818cf8', [3, 3, 4, 4, 5, 6, 6, 7, 8, 9, 9, 10]],
+        ['Flood', '#38bdf8', [6, 5, 4, 2, 2, 1, 1, 1, 0, 1, 0, 1]],
+        ['Photo', '#f472b6', [5, 6, 6, 7, 8, 7, 9, 8, 10, 9, 11, 10]],
+        ['Weather', '#facc15', [10, 11, 12, 12, 14, 15, 14, 16, 17, 18, 19, 20]],
+        ['Comparison', '#a3e635', [1, 1, 2, 2, 3, 3, 4, 3, 5, 4, 6, 6]],
+    ];
+    new Chart(document.getElementById('usageChart'), {
+        type: 'bar',
+        data: { labels: weeks, datasets: usageSeries.map(([l, c, d]) => ({ label: l, data: d, backgroundColor: c, borderRadius: 2 })) },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { boxWidth: 10 } } },
+            scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'reports' } } },
+        },
+    });
+
+    let statusChart = null;
+    function renderStatusChart() {
+        const fs = visibleFields();
+        const keys = Object.keys(STATUS);
+        if (statusChart) statusChart.destroy();
+        statusChart = new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: keys.map(k => `${STATUS[k].icon} ${STATUS[k].label}`),
+                datasets: [{ data: keys.map(k => fs.filter(f => f.status === k).length), backgroundColor: keys.map(k => STATUS[k].color), borderColor: '#ffffff', borderWidth: 2 }],
+            },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { boxWidth: 10 } } } },
+        });
+    }
+    document.getElementById('funnel').innerHTML = `
+        <tr><th>Report requests (pilot to date)</th><th class="num">n</th><th class="num">%</th></tr>
+        <tr><td>Delivered</td><td class="num">1 846</td><td class="num up">89 %</td></tr>
+        <tr><td>Not possible · no clear image</td><td class="num">158</td><td class="num">8 %</td></tr>
+        <tr><td>Not possible · field &lt; 0.25 ha</td><td class="num">41</td><td class="num">2 %</td></tr>
+        <tr><td>Failed (error)</td><td class="num">23</td><td class="num">1 %</td></tr>`;
+
+    /* ============================================================
+       8. VILLAGE TABLE + INDICATORS
+       ============================================================ */
+    function renderVillageTable() {
+        const fs = visibleFields();
+        const rows = VILLAGES.map(v => {
+            const vf = fs.filter(f => f.village === v.name);
+            if (!vf.length) return '';
+            const risk = vf.filter(f => f.status === 'attention' || f.status === 'act').length;
+            const fresh = vf.filter(f => f.opticalAge <= 14).length;
+            const last = vf.flatMap(f => f.reports).sort((a, b) => b.date - a.date)[0];
+            return `<tr class="clickable" data-v="${v.name}">
+                <td><b>${v.name}</b> <span class="muted">${v.district}</span></td>
+                <td class="num">${uniq(vf.map(f => f.farmer)).length}</td>
+                <td class="num">${vf.length}</td>
+                <td class="num">${sum(vf, f => f.areaHa).toFixed(1)}</td>
+                <td class="num">${vf.filter(f => f.type === 'demo').length}</td>
+                <td class="num">${risk ? `<span class="warn">${risk}</span>` : '0'}</td>
+                <td class="num">${Math.round(100 * fresh / vf.length)} %</td>
+                <td class="num muted">${last ? fmtDate(last.date) : '—'}</td></tr>`;
+        }).join('');
+        const tbl = document.getElementById('villageTable');
+        tbl.innerHTML = `<tr><th>Village</th><th class="num">Farmers</th><th class="num">Fields</th><th class="num">ha</th>
+            <th class="num">Demo</th><th class="num">Need action</th><th class="num">Fresh image</th><th class="num">Last report</th></tr>${rows}`;
+        tbl.querySelectorAll('tr.clickable').forEach(tr => tr.onclick = () => {
+            map.fitBounds(pilotBounds(FIELDS.filter(f => f.village === tr.dataset.v)), { padding: [30, 30] });
+            document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }
+
+    function renderIndicators() {
+        const fs = visibleFields();
+        const farmers = uniq(fs.map(f => f.farmer));
+        const women = uniq(fs.filter(f => f.womenLed).map(f => f.farmer)).length;
+        const ha = sum(fs, f => f.areaHa);
+        const demo = fs.filter(f => f.type === 'demo').length;
+        const forest = fs.filter(f => f.forestFlag).length;
+        const items = [
+            ['Area under monitoring', `${ha.toFixed(0)} / 335 ha`, ha / 335],
+            ['Farmers supported', `${farmers.length} / 110`, farmers.length / 110],
+            ['Women-led farms', `${Math.round(100 * women / Math.max(farmers.length, 1))} % (target ≥ 30 %)`, Math.min(1, (women / Math.max(farmers.length, 1)) / 0.3)],
+            ['Lead-farmer demo plots', `${demo} / 25`, demo / 25],
+        ];
+        document.getElementById('indicators').innerHTML = items.map(([l, v, p]) => `
+            <div class="indicator"><div class="indicator-head"><span>${l}</span><b>${v}</b></div>
+            <div class="progress"><span style="width:${Math.min(100, p * 100)}%"></span></div></div>`).join('') + `
+            <div class="indicator"><div class="indicator-head"><span>🌳 Forest-loss check (since 2020)</span>
+            <b class="${forest ? 'warn' : 'up'}">${forest} field${forest === 1 ? '' : 's'} to verify</b></div>
+            <div class="small muted">Field outlines vs. Hansen/GFC tree-cover loss · supports the "215 ha forest preserved" target</div></div>`;
+    }
+
+    /* ============================================================
+       9. HARVEST + QUALITY
+       ============================================================ */
+    let harvestChart = null;
+    function renderHarvest() {
+        const fs = visibleFields();
+        const labels = Array.from({ length: 9 }, (_, i) => new Date(TODAY.getFullYear(), TODAY.getMonth() + i, 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }));
+        const tonnes = Array(9).fill(0);
+        fs.filter(f => f.forced).forEach(f => {
+            const harvest = new Date(f.forced.getTime() + 167 * 86400000);
+            const idx = monthsBetween(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1), harvest);
+            if (idx >= 0 && idx < 9) tonnes[idx] += f.areaHa * 25000 * 0.8 * 1.3 / 1000;
+        });
+        const planned = tonnes.map((_, i) => Math.round(160 + 25 * Math.sin(i)));
+        if (harvestChart) harvestChart.destroy();
+        harvestChart = new Chart(document.getElementById('harvestChart'), {
+            data: {
+                labels,
+                datasets: [
+                    { type: 'bar', label: 'Expected fruit (t)', data: tonnes.map(t => +t.toFixed(1)), backgroundColor: 'rgba(250,204,21,0.55)', borderRadius: 4 },
+                    { type: 'line', label: 'Buyer demand, illustrative (t)', data: planned, borderColor: '#16a34a', borderDash: [4, 4], pointRadius: 0 },
+                ],
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { boxWidth: 10 } } }, scales: { y: { title: { display: true, text: 'tonnes' } } } },
+        });
+    }
+
+    new Chart(document.getElementById('qualityChart'), {
+        type: 'line',
+        data: {
+            labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+            datasets: [
+                { label: 'No clear image (cloud gap)', data: CLEAR_EAST.map((c, i) => Math.round((1 - c) * 40 + (i % 3))), borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,0.15)', fill: true, tension: 0.3 },
+                { label: 'Radar fallback used', data: CLEAR_EAST.map((c) => Math.round((1 - c) * 55)), borderColor: '#06b6d4', tension: 0.3 },
+                { label: 'Field too small (< 0.25 ha)', data: [6, 5, 4, 4, 3, 3, 3, 2, 3, 2, 2, 2], borderColor: '#a1a1aa', borderDash: [4, 4], tension: 0.3 },
+            ],
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { boxWidth: 10 } } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'requests / month' } } } },
+    });
+
+    /* ============================================================
+       10. PDF MODAL
+       ============================================================ */
+    const modal = document.getElementById('pdfModal');
+    function openPdf(tpl = 'monthly') {
+        document.querySelectorAll('.tpl').forEach(t => t.classList.toggle('active', t.dataset.tpl === tpl));
+        modal.classList.add('open');
+    }
+    window.openPdf = openPdf;
+    document.getElementById('openPdf').onclick = () => openPdf();
+    document.getElementById('closePdf').onclick = () => modal.classList.remove('open');
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('open'); });
+    document.querySelectorAll('.tpl').forEach(t => t.onclick = () => {
+        document.querySelectorAll('.tpl').forEach(x => x.classList.remove('active')); t.classList.add('active');
+    });
+    function toast(msg) {
+        const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block';
+        setTimeout(() => { t.style.display = 'none'; }, 3200);
+    }
+    document.getElementById('schedulePdf').onclick = () => { modal.classList.remove('open'); toast('✅ Monthly report scheduled for the 1st of each month (mock).'); };
+    document.getElementById('printPdf').onclick = () => { modal.classList.remove('open'); setTimeout(() => window.print(), 150); };
+
+    /* ============================================================
+       11. DEMO VS TRADITIONAL + PHOTO GROUND TRUTH
+       ============================================================ */
+    const median = (xs) => {
+        const s = xs.filter(x => x !== null).sort((a, b) => a - b);
+        if (s.length < 3) return null;
+        const m = Math.floor(s.length / 2);
+        return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+    };
+    let demoChart = null, photoChart = null;
+    function renderDemoChart() {
+        const fs = FIELDS.filter(f => districtFilter === 'all' || f.district === districtFilter);
+        const labels = FIELDS[0].series.labels;
+        const byType = (t) => labels.map((_, w) => {
+            const v = median(fs.filter(f => f.type === t).map(f => f.series.ndvi[w]));
+            return v === null ? null : +v.toFixed(3);
+        });
+        const demo = byType('demo'), trad = byType('traditional');
+        const recent = demo.map((d, i) => (d !== null && trad[i] !== null ? d - trad[i] : null)).slice(-12).filter(x => x !== null);
+        const gap = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : 0;
+        document.getElementById('demoGap').textContent = `Demo +${gap.toFixed(2)} NDVI`;
+        if (demoChart) demoChart.destroy();
+        demoChart = new Chart(document.getElementById('demoChart'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Demo plots (median)', data: demo, borderColor: '#0891b2', backgroundColor: '#0891b2', tension: 0.3, pointRadius: 1.5 },
+                    { label: 'Traditional plots (median)', data: trad, borderColor: '#94a3b8', backgroundColor: '#94a3b8', tension: 0.3, pointRadius: 1.5 },
+                ],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { labels: { boxWidth: 10 } } },
+                scales: { y: { min: 0.3, max: 0.7, title: { display: true, text: 'NDVI' } }, x: { ticks: { maxTicksLimit: 8 } } },
+            },
+        });
+    }
+
+    function renderPhotoChart() {
+        const ps = visiblePhotos();
+        const keys = Object.keys(DIAG);
+        const confirmed = ps.filter(p => p.confirmed).length;
+        document.getElementById('photoLabels').textContent = `${confirmed} confirmed labels · Phase 1 goal 200`;
+        if (photoChart) photoChart.destroy();
+        photoChart = new Chart(document.getElementById('photoChart'), {
+            type: 'bar',
+            data: {
+                labels: keys.map(k => DIAG[k].label),
+                datasets: [
+                    { label: 'Confirmed by technician', data: keys.map(k => ps.filter(p => p.dx === k && p.confirmed).length), backgroundColor: keys.map(k => DIAG[k].color), borderRadius: 3 },
+                    { label: 'Awaiting review', data: keys.map(k => ps.filter(p => p.dx === k && !p.confirmed).length), backgroundColor: keys.map(k => DIAG[k].color + '55'), borderRadius: 3 },
+                ],
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { boxWidth: 10 } } },
+                scales: { x: { stacked: true, title: { display: true, text: 'photos' }, ticks: { precision: 0 } }, y: { stacked: true } },
+            },
+        });
+    }
+
+    /* ============================================================
+       12. USE CASES
+       ============================================================ */
+    const AUD = {
+        farmers: { label: 'Farmers', color: '#16a34a', icon: '👩‍🌾' },
+        hub:     { label: 'Hub & technicians', color: '#0891b2', icon: '🧑‍🔬' },
+        fao:     { label: 'FAO, funders & lenders', color: '#7c3aed', icon: '🏛️' },
+    };
+    const READY = {
+        live:      ['Live today', 'badge-green'],
+        validate:  ['Live · validate on pineapple', 'badge-cyan'],
+        calibrate: ['Live · needs calibration', 'badge-yellow'],
+        small:     ['Small addition', 'badge-yellow'],
+        phase2:    ['Phase 2 build', 'badge-orange'],
+        phase3:    ['Phase 3 option', 'badge-grey'],
+    };
+    const CLOUD = {
+        cloud:   ['☁️ Works through clouds', 'badge-green'],
+        mixed:   ['⛅ Optical + radar', 'badge-yellow'],
+        optical: ['☀️ Clear skies only', 'badge-orange'],
+        none:    ['No satellite needed', 'badge-grey'],
+    };
+
+    const USE_CASES = [
+        {
+            id: 'waterlogging', short: 'Waterlogging', icon: '🌊', title: 'Waterlogging & heavy-rain watch',
+            aud: ['farmers', 'hub'], ready: 'live', cloud: 'cloud', phase: 1, value: 5, readiness: 4, reach: 5,
+            what: 'After heavy rain, radar checks every field for standing water and tracks whether it is receding. The farmer gets a 🔴 with the flooded share and a drainage tip; the Hub sees which raised beds are keeping roots dry.',
+            built: 'WhatsApp flood check + weather · Sentinel-1 radar every ~5 days, water below −18 dB',
+            limits: 'Sees water only at radar pass times. Needs ≥ 1 000 m² and ≥ 5 % of the field under water, so short ponding between passes is missed.',
+            proof: 'Documented radar coverage in cloudy weeks; technician agreement on 🔴 flood alerts.',
+            question: 'Which villages lose the most plants to rot after heavy rain, and in which months?',
+            show: [
+                { label: 'Open a waterlogged field', go: () => { resetFilters(); selectField(STORY_FIELD.id, true); flash('#fieldsRow'); } },
+                { label: 'Rain vs. clouds', go: () => flash('#climateCard') },
+            ],
+        },
+        {
+            id: 'photo', short: 'Photo check', icon: '📷', title: 'Pest & disease photo check → ground-truth map',
+            aud: ['farmers', 'hub'], ready: 'validate', cloud: 'none', phase: 1, value: 5, readiness: 4, reach: 4,
+            what: 'A photo in the chat returns a likely diagnosis (heart and root rot, mealybug wilt, fusariosis, sunburn) with organic-compatible first steps. A Hub technician confirms or corrects it, building Suriname\'s first pineapple ground-truth map.',
+            built: 'WhatsApp photo diagnosis · vision AI · technician confirmation',
+            limits: 'Not yet validated on pineapple. Mealybug wilt and fusariosis have no satellite signature: photos are the only signal.',
+            proof: 'Diagnosis accuracy against technician labels on ≥ 200 photos.',
+            question: 'Who at the Hub could confirm about 10 photos a week? Which problems matter most to organic buyers?',
+            show: [
+                { label: 'Photo map', go: () => { resetFilters(); setPhotos(true); fitVillage('Redi Doti'); flash('#mapCard'); } },
+                { label: 'Diagnoses', go: () => flash('#photoCard') },
+            ],
+        },
+        {
+            id: 'triage', short: 'Visit triage', icon: '🚨', title: 'Weekly field-visit triage',
+            aud: ['hub'], ready: 'live', cloud: 'mixed', phase: 1, value: 5, readiness: 5, reach: 3,
+            what: 'Every Monday the Hub sees which fields moved: 🟠/🔴 alerts, village hotspots and which corner to walk. Technicians drive to the fields that need them, not to the ones that turned out fine.',
+            built: 'This dashboard · alert list · village table · up to 25 named fields per phone number',
+            limits: 'Optical alerts thin out from December to June (Redi Doti: 10–58 % clear days). Thresholds are literature priors until Phase 1 calibration.',
+            proof: '≥ 70 % technician agreement on 🟠/🔴 alerts.',
+            question: 'How do technicians choose this week\'s farm visits today? What would make them act on an alert list?',
+            show: [
+                { label: 'Alert list', go: () => flash('#alertsCard') },
+                { label: 'Village table', go: () => flash('#villageCard') },
+            ],
+        },
+        {
+            id: 'demo', short: 'Demo vs traditional', icon: '⚖️', title: 'Demo vs. traditional plot comparison',
+            aud: ['hub', 'fao'], ready: 'live', cloud: 'optical', phase: 1, value: 4, readiness: 4, reach: 3,
+            what: 'Compares the 25 lead farmers\' demo plots with neighbouring traditional plots on the same satellite image. Shows neighbours, and funders, whether the improved practice is paying off.',
+            built: 'WhatsApp field comparison · "change since date X" (planting, compost)',
+            limits: 'Needs plots of at least ~0.3 ha (better 0.65 ha) and a clear image of both fields on the same date.',
+            proof: 'Baseline of demo vs. traditional plots (Phase 1 exit condition).',
+            question: 'Which demo-plot practices should we tag (compost, raised beds, spacing) so the comparison tells a story?',
+            show: [{ label: 'Comparison chart', go: () => flash('#demoCard') }],
+        },
+        {
+            id: 'evidence', short: 'Programme evidence', icon: '📑', title: 'Programme evidence & donor reporting',
+            aud: ['fao'], ready: 'live', cloud: 'none', phase: 1, value: 4, readiness: 5, reach: 2,
+            what: 'Hectares monitored, farmers reached, women-led share, demo plots and fields at risk, by village and month. Exported as a PDF for the Joint SDG Fund, with small groups suppressed to protect farmers.',
+            built: 'Partner data views (≥ 3 farmers per cell) · this dashboard · PDF reports',
+            limits: 'Hectares and women-led share need small additions (an area view, one onboarding question). Field-level detail only with consent.',
+            proof: 'Monthly report accepted by FAO without manual rework.',
+            question: 'Which indicators does the Joint SDG Fund report need, and how often?',
+            show: [
+                { label: 'Indicators', go: () => flash('#indicatorsCard') },
+                { label: 'PDF reports', go: () => openPdf('donor') },
+            ],
+        },
+        {
+            id: 'weather', short: 'Spray windows', icon: '🌦️', title: 'Spray, flower-induction & dry-spell windows',
+            aud: ['farmers'], ready: 'live', cloud: 'none', phase: 1, value: 3, readiness: 5, reach: 5,
+            what: 'The 7-day forecast turned into plain advice: when to spray organic inputs or ethephon for flower induction without rain washing it off, and warnings for dry spells on the white sands.',
+            built: 'WhatsApp weather · spray-window logic from wind, humidity and rain',
+            limits: 'Forecast skill drops after 3–4 days. No on-farm rain gauge.',
+            proof: 'Farmers ask for the weather at least twice a month.',
+            question: 'Does flower induction often fail because of rain? Who sets the induction date: the farmer or the Hub?',
+            show: [{ label: 'Forecast', go: () => flash('#climateCard') }],
+        },
+        {
+            id: 'harvest', short: 'Harvest forecast', icon: '🍍', title: 'Harvest-window forecast for the cooperative',
+            aud: ['hub', 'fao'], ready: 'phase2', cloud: 'none', phase: 2, value: 5, readiness: 2, reach: 4,
+            what: 'With a flower-induction date per field, a temperature-driven model estimates harvest weeks. Summed across farmers, it gives the cooperative and processor a supply calendar for contract farming and staggered planting.',
+            built: 'Induction dates from the ASTA traceability app or one chat question · temperature model',
+            limits: 'Needs reliable induction dates. Natural (unforced) flowering cannot be predicted.',
+            proof: 'Harvest windows within ± 2 weeks for most forced fields (Phase 2 exit condition).',
+            question: 'Can induction dates be exported from the ASTA app? How far ahead do buyers need volumes?',
+            show: [{ label: 'Harvest preview', go: () => flash('#harvestCard') }],
+        },
+        {
+            id: 'inputs', short: 'Input targeting', icon: '🧪', title: 'Organic input targeting',
+            aud: ['hub'], ready: 'calibrate', cloud: 'optical', phase: 2, value: 3, readiness: 2, reach: 3,
+            what: 'Leaf-greenness trends show which fields fall behind their neighbours on the nutrient-poor sands, so bulk-bought organic fertilizer goes where it is needed most.',
+            built: 'WhatsApp nitrogen check, shown as "leaf greenness" · NDRE with pineapple cutoffs',
+            limits: 'Not calibrated on pineapple; optical only, so no reading in cloudy weeks. Frame it as "compare with neighbours", not as a dose.',
+            proof: 'Correlation of leaf greenness with leaf samples on demo plots.',
+            question: 'How is organic fertilizer allocated today? Could the Hub take a few leaf samples on demo plots?',
+            show: [{ label: 'Leaf-greenness map', go: () => { resetFilters(); setColorMode('ndre'); fitVillage('Matta'); flash('#mapCard'); } }],
+        },
+        {
+            id: 'screening', short: 'Site screening', icon: '🌳', title: 'Site screening & forest-loss check',
+            aud: ['fao', 'hub'], ready: 'small', cloud: 'none', phase: 0, value: 3, readiness: 3, reach: 2,
+            what: 'Before a permanent plot is planted: flood history, drainage and slope, plus a check that the land was not forest after 2020. Evidence for the "forest preserved" target and for organic export buyers.',
+            built: 'One-off Earth Engine analysis: surface-water history, forest change, terrain',
+            limits: 'Offline analysis, not in the chat. Forest data at 30 m resolution.',
+            proof: 'A screening map per pilot village, delivered in Phase 0.',
+            question: 'Would a forest-loss check help with organic certification or the 215 ha forest target?',
+            show: [{ label: 'Forest check', go: () => flash('#indicatorsCard') }],
+        },
+        {
+            id: 'loans', short: 'Loan monitoring', icon: '🏦', title: 'Field log for the Collateral Support Facility',
+            aud: ['fao'], ready: 'phase3', cloud: 'mixed', phase: 3, value: 4, readiness: 1, reach: 3,
+            what: 'A weekly health log per financed field gives Trustbank Amanah a low-cost view of the crop behind a loan, for farmers whose communal land cannot serve as collateral.',
+            built: 'The same weekly field log · consent-based sharing',
+            limits: 'Needs explicit farmer consent and a governance agreement. It must never become a tool against farmers.',
+            proof: 'GO decision by the steering committee (Phase 3).',
+            question: 'Would the facility use a field log, and what would farmers need to agree to?',
+            show: [{ label: 'Field dossier', go: () => openPdf('field') }],
+        },
+    ];
+    const DEFAULT_ORDER = USE_CASES.map(u => u.id);
+    let ucOrder = [...DEFAULT_ORDER];
+    const ucPicked = new Set();
+    const ucById = Object.fromEntries(USE_CASES.map(u => [u.id, u]));
+    const rankOf = (id) => ucOrder.indexOf(id) + 1;
+
+    const PHASES = [
+        { n: 0, name: 'Phase 0 · Design', when: 'Months 0–1 · arandu, Hub, FAO',
+          exits: ['Consent (FPIC) agreed with village leadership', '2–3 villages selected', 'Languages agreed: Dutch, Sranantongo, Indigenous-language test'] },
+        { n: 1, name: 'Phase 1 · Technicians', when: 'Months 1–3 · Hub agronomists, 25 lead farmers',
+          exits: ['≥ 70 % technician agreement on 🟠/🔴 alerts', 'Radar coverage documented in cloudy weeks', 'Detection rate known on plots < 0.3 ha', 'Baseline: demo vs. traditional plots'] },
+        { n: 2, name: 'Phase 2 · Producers', when: 'Months 3–9 · 100+ Hub member farmers',
+          exits: ['≥ 40 % active monthly users', '≥ 2 analyses per user per month', 'Harvest windows within ± 2 weeks', '"We would miss it" from the Hub and the women\'s cooperative'] },
+        { n: 3, name: 'Phase 3 · Scale', when: 'Months 9–18 · steering committee (FAO, UNIDO, Hub)',
+          exits: ['GO: all Hub farmers, harvest calendar in contract farming, loan monitoring', 'NO-GO: archive, share methods, do not expand'] },
+    ];
+
+    const dots = (n) => '●'.repeat(n) + `<i>${'●'.repeat(5 - n)}</i>`;
+    const ucChip = (id) => `<span class="uc-chip" data-uc="${id}"></span>`;
+
+    function renderUseCases() {
+        document.getElementById('ucList').innerHTML = ucOrder.map((id, i) => {
+            const u = ucById[id], c = AUD[u.aud[0]].color;
+            return `
+            <div class="card uc ${ucPicked.has(id) ? 'picked' : ''}" id="uc-${id}" style="--c:${c}">
+                <div class="uc-rank">${i + 1}<small>${ucPicked.has(id) ? '★ FAO pick' : ''}</small></div>
+                <div>
+                    <h3>${u.icon} ${u.title}</h3>
+                    <div class="badges">
+                        ${u.aud.map(a => `<span class="badge" style="background:${AUD[a].color}22;color:${AUD[a].color}">${AUD[a].icon} ${AUD[a].label}</span>`).join('')}
+                        <span class="badge ${READY[u.ready][1]}">${READY[u.ready][0]}</span>
+                        <span class="badge ${CLOUD[u.cloud][1]}">${CLOUD[u.cloud][0]}</span>
+                        <span class="badge badge-grey">Phase ${u.phase}</span>
+                    </div>
+                    <div class="uc-body">
+                        <div><b>What it does</b>${u.what}</div>
+                        <div><b>Built on</b>${u.built}</div>
+                        <div><b>Limits</b>${u.limits}</div>
+                        <div><b>How the pilot proves it</b>${u.proof}</div>
+                    </div>
+                    <div class="question">❓ <b>For you:</b> ${u.question}</div>
+                </div>
+                <div class="uc-side">
+                    <div class="score"><span>Value to the chain</span><span class="dots">${dots(u.value)}</span></div>
+                    <div class="score"><span>Ready today</span><span class="dots">${dots(u.readiness)}</span></div>
+                    <div class="score"><span>Farmers reached</span><span class="dots">${dots(u.reach)}</span></div>
+                    ${u.show.map((s, k) => `<button class="btn" data-show="${id}" data-k="${k}">👁 ${s.label}</button>`).join('')}
+                    <div class="uc-ctrl">
+                        <button class="btn" data-move="-1" data-id="${id}" title="Move up" ${i === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="btn" data-move="1" data-id="${id}" title="Move down" ${i === ucOrder.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button class="btn ${ucPicked.has(id) ? 'btn-primary' : ''}" data-pick="${id}" title="Mark as FAO priority">★ Priority</button>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        document.getElementById('audienceRow').innerHTML = Object.entries(AUD).map(([k, a]) => `
+            <div class="card aud-card" style="--c:${a.color}">
+                <h4>${a.icon} ${a.label}</h4>
+                <ul>${ucOrder.filter(id => ucById[id].aud.includes(k)).map(id => `<li data-goto="${id}"><b style="color:${a.color}">#${rankOf(id)}</b> ${ucById[id].title}</li>`).join('')}</ul>
+            </div>`).join('');
+
+        document.getElementById('phaseGrid').innerHTML = PHASES.map(p => `
+            <div class="card phase">
+                <h4>${p.name}</h4>
+                <div class="when">${p.when}</div>
+                <div class="chips">${ucOrder.filter(id => ucById[id].phase === p.n).map(id => ucChip(id)).join('') || '<span class="muted small">—</span>'}</div>
+                <div class="small muted" style="margin-bottom:4px">Exit conditions</div>
+                <ul>${p.exits.map(e => `<li>${e}</li>`).join('')}</ul>
+            </div>`).join('');
+
+        renderUcChips();
+        updateMatrix();
+    }
+
+    function renderUcChips() {
+        document.querySelectorAll('.uc-chip[data-uc]').forEach(el => {
+            const id = el.dataset.uc;
+            el.textContent = `#${rankOf(id)} ${ucById[id].short}`;
+            el.title = `Use case: ${ucById[id].title}`;
+            el.onclick = (e) => { e.stopPropagation(); gotoUseCase(id); };
+        });
+    }
+
+    document.getElementById('view-usecases').addEventListener('click', (e) => {
+        const t = e.target.closest('[data-move],[data-pick],[data-show],[data-goto]');
+        if (!t) return;
+        if (t.dataset.move) {
+            const i = ucOrder.indexOf(t.dataset.id), j = i + Number(t.dataset.move);
+            [ucOrder[i], ucOrder[j]] = [ucOrder[j], ucOrder[i]];
+            renderUseCases(); flash(`#uc-${t.dataset.id}`, false);
+        } else if (t.dataset.pick) {
+            const id = t.dataset.pick;
+            ucPicked.has(id) ? ucPicked.delete(id) : ucPicked.add(id);
+            renderUseCases();
+        } else if (t.dataset.show) {
+            setView('dashboard');
+            setTimeout(() => ucById[t.dataset.show].show[Number(t.dataset.k)].go(), 60);
+        } else if (t.dataset.goto) {
+            gotoUseCase(t.dataset.goto);
+        }
+    });
+    document.getElementById('resetRank').onclick = () => { ucOrder = [...DEFAULT_ORDER]; ucPicked.clear(); renderUseCases(); };
+    document.getElementById('printRank').onclick = () => window.print();
+
+    let matrixChart = null;
+    const quadrantPlugin = {
+        id: 'quadrants',
+        beforeDraw(chart) {
+            const { ctx, chartArea: a, scales: { x, y } } = chart;
+            const mx = x.getPixelForValue(3), my = y.getPixelForValue(3.5);
+            ctx.save();
+            ctx.fillStyle = 'rgba(34,197,94,0.07)';
+            ctx.fillRect(mx, a.top, a.right - mx, my - a.top);
+            ctx.font = '600 11px Inter, sans-serif';
+            ctx.fillStyle = 'rgba(15,23,42,0.4)';
+            ctx.textAlign = 'right'; ctx.fillText('START IN PHASE 1', a.right - 8, a.top + 16);
+            ctx.textAlign = 'left'; ctx.fillText('BUILD NEXT', a.left + 8, a.top + 16);
+            ctx.fillText('LATER', a.left + 8, a.bottom - 8);
+            ctx.textAlign = 'right'; ctx.fillText('QUICK EXTRAS', a.right - 8, a.bottom - 8);
+            ctx.restore();
+        },
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            ctx.save();
+            ctx.font = '700 11px Inter, sans-serif'; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            chart.getDatasetMeta(0).data.forEach((pt, i) => ctx.fillText(chart.data.datasets[0].data[i].rank, pt.x, pt.y));
+            ctx.restore();
+        },
+    };
+    function matrixData() {
+        const seen = {};
+        return USE_CASES.map(u => {
+            const key = `${u.readiness},${u.value}`;
+            const k = (seen[key] = (seen[key] || 0) + 1) - 1;
+            return { x: u.readiness + (k ? 0.28 * k : 0), y: u.value - (k ? 0.12 * k : 0), r: 6 + u.reach * 2.6, rank: rankOf(u.id), id: u.id };
+        });
+    }
+    function updateMatrix() {
+        if (!matrixChart) return;
+        matrixChart.data.datasets[0].data = matrixData();
+        matrixChart.update('none');
+    }
+    function buildMatrix() {
+        if (matrixChart) return;
+        matrixChart = new Chart(document.getElementById('matrixChart'), {
+            type: 'bubble',
+            data: { datasets: [{ data: matrixData(), backgroundColor: USE_CASES.map(u => AUD[u.aud[0]].color + 'dd'), borderColor: '#ffffff', borderWidth: 1.5 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (c) => `#${c.raw.rank} ${ucById[c.raw.id].title}` } },
+                },
+                scales: {
+                    x: { min: 0.5, max: 5.7, title: { display: true, text: 'Ready today →' }, ticks: { stepSize: 1, callback: (v) => (Number.isInteger(v) ? v : '') } },
+                    y: { min: 1.5, max: 5.6, title: { display: true, text: 'Value to the pineapple chain →' }, ticks: { stepSize: 1, callback: (v) => (Number.isInteger(v) ? v : '') } },
+                },
+                onClick: (e, els) => { if (els.length) gotoUseCase(matrixChart.data.datasets[0].data[els[0].index].id); },
+            },
+            plugins: [quadrantPlugin],
+        });
+    }
+
+    /* ============================================================
+       13. VIEWS + NAVIGATION HELPERS
+       ============================================================ */
+    let currentView = 'dashboard';
+    function setView(name) {
+        currentView = name;
+        document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== `view-${name}`; });
+        document.querySelectorAll('#viewTabs button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+        if (name === 'dashboard') setTimeout(() => map.invalidateSize(), 0);
+        if (name === 'usecases') buildMatrix();
+    }
+    document.querySelectorAll('#viewTabs button[data-view]').forEach(b => b.onclick = () => { endTour(); setView(b.dataset.view); window.scrollTo(0, 0); });
+
+    function scrollToEl(el) {
+        const r = el.getBoundingClientRect();
+        const top = r.top + window.scrollY;
+        const fits = r.height < window.innerHeight - 140;
+        window.scrollTo({ top: fits ? top - (window.innerHeight - r.height) / 2 + 30 : top - 90, behavior: 'smooth' });
+    }
+    function flash(sel, scroll = true) {
+        const el = document.querySelector(sel);
+        if (!el) return;
+        if (scroll) scrollToEl(el);
+        el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    }
+    function gotoUseCase(id) {
+        setView('usecases');
+        setTimeout(() => flash(`#uc-${id}`), 60);
+    }
+    function resetFilters() {
+        districtFilter = 'all'; typeFilter = 'all';
+        document.getElementById('districtSel').value = 'all';
+        document.querySelectorAll('#typeFilter button').forEach(x => x.classList.toggle('active', x.dataset.type === 'all'));
+        refreshAll();
+    }
+    function setColorMode(mode) {
+        colorMode = mode;
+        document.querySelectorAll('#colorMode button').forEach(x => x.classList.toggle('active', x.dataset.mode === mode));
+        renderMap();
+    }
+    function fitVillage(name) {
+        map.fitBounds(pilotBounds(FIELDS.filter(f => f.village === name)), { padding: [30, 30] });
+    }
+
+    /* ============================================================
+       14. GUIDED DEMO TOUR
+       ============================================================ */
+    const TOUR = [
+        {
+            target: '#kpis', uc: 'evidence', title: 'Monday, 8:00 at the Horticulture Hub',
+            body: 'One screen for the whole pilot: farmers, fields, hectares toward the 335 ha target, and how many fields need attention this week.',
+            say: 'Everything here comes from farmers using WhatsApp. No technician typed anything in.',
+            before: () => { resetFilters(); setPhotos(false); setColorMode('status'); selectedId = null; renderPanelOverview(); },
+        },
+        {
+            target: '#mapCard', uc: 'triage', title: 'Where is trouble concentrated?',
+            body: 'Each circle is a village, sized by hectares and coloured by the share of its fields at 🟠 or 🔴. Click one to see the field outlines.',
+            say: 'Two clicks from the whole programme to a single field.',
+            before: () => map.fitBounds(pilotBounds(FIELDS), { padding: [30, 30] }),
+        },
+        {
+            target: '#alertsCard', uc: 'triage', title: 'Which fields moved this week?',
+            body: 'The alert list is the technician\'s visit plan, worst first, with the reason in plain words.',
+            say: 'An advisor with 20 farmers knows which field, and which corner, to walk before leaving the office.',
+        },
+        {
+            target: '#fieldsRow', uc: 'waterlogging', title: 'A 🔴: standing water after the rains',
+            body: () => `${STORY_FIELD.id} in ${STORY_FIELD.village}: radar saw water on 18 % of the field through full cloud. The farmer already received a WhatsApp message with a drainage tip.`,
+            say: 'Waterlogging is the main pineapple risk, and radar is the one signal clouds cannot block.',
+            before: () => selectField(STORY_FIELD.id, true),
+        },
+        {
+            target: '#fieldPanel', uc: 'triage', title: 'Honest about clouds',
+            body: 'Gaps in the 12-month trend are weeks with no clear optical image, mostly December to June. In those weeks crop health and water come from radar, and leaf greenness is skipped rather than guessed.',
+            say: 'Our 12-month replay: clear optical reports on 67–73 % of days, radar on every remaining day.',
+        },
+        {
+            target: '#mapCard', uc: 'photo', title: 'Photos become ground truth',
+            body: 'Each dot is a farmer photo with a diagnosis. Rot clusters where radar saw standing water. A technician\'s ✅ turns a photo into a training label.',
+            say: 'Mealybug wilt and fusariosis have no satellite signature. The farmer\'s phone is the sensor.',
+            before: () => { setPhotos(true); fitVillage(STORY_FIELD.village); },
+        },
+        {
+            target: '#photoCard', uc: 'photo', title: 'What farmers are finding',
+            body: 'Diagnoses by type, confirmed or awaiting review. 200 confirmed labels is a Phase 1 goal: the first dataset of its kind for Suriname pineapple.',
+            say: 'This is how we measure whether the photo check is right, before scaling it.',
+        },
+        {
+            target: '#demoCard', uc: 'demo', title: 'Is the improved practice paying off?',
+            body: 'Lead farmers\' demo plots against traditional plots, on the same satellite images, so no absolute calibration is needed.',
+            say: 'The gap is the story neighbours and funders want to see.',
+        },
+        {
+            target: '#climateCard', uc: 'weather', title: 'When to spray, when to induce',
+            body: 'Rainfall against clear-sky days explains the gaps in the satellite record. The 7-day strip tells farmers when organic sprays or ethephon will not be washed off.',
+            say: 'Weather advice works every day of the year, clouds or not.',
+        },
+        {
+            target: '#harvestCard', uc: 'harvest', title: 'Phase 2: a supply calendar',
+            body: 'With flower-induction dates, harvests can be forecast field by field and summed for the cooperative and the processor.',
+            say: 'Months where the bars exceed the demand line are gluts: a reason to stagger induction.',
+        },
+        {
+            target: '#indicatorsCard', uc: 'evidence', title: 'Evidence for the Joint SDG Fund',
+            body: 'Hectares, farmers, women-led share, demo plots and the forest check, one click from a PDF report with small groups suppressed.',
+            say: 'Reporting becomes a by-product of farmers using the service.',
+        },
+        {
+            view: 'usecases', target: '#matrixChart', uc: null, title: 'Which of these matter most to you?',
+            body: 'Ten use cases, ranked by value to the chain and readiness today. Let\'s reorder them together: the order decides what we build and validate first.',
+            say: 'Start with the questions on each card. Your answers move the ranking.',
+            focusSel: '.grid.grid-3',
+        },
+    ];
+    let tourIdx = -1, tourFocusEl = null;
+    const tourBox = document.getElementById('tourBox');
+
+    function clearTourFocus() {
+        if (tourFocusEl) tourFocusEl.classList.remove('tour-focus');
+        tourFocusEl = null;
+    }
+    function showTourStep(i) {
+        tourIdx = i;
+        const s = TOUR[i];
+        clearTourFocus();
+        setView(s.view || 'dashboard');
+        if (s.before) s.before();
+        document.getElementById('tourStep').textContent = `Demo tour · step ${i + 1} of ${TOUR.length}`;
+        document.getElementById('tourTitle').textContent = s.title;
+        document.getElementById('tourBody').textContent = typeof s.body === 'function' ? s.body() : s.body;
+        document.getElementById('tourSay').textContent = s.say ? `💬 ${s.say}` : '';
+        document.getElementById('tourUc').innerHTML = s.uc ? ucChip(s.uc) : '';
+        document.getElementById('tourBar').style.width = `${((i + 1) / TOUR.length) * 100}%`;
+        document.getElementById('tourPrev').disabled = i === 0;
+        document.getElementById('tourNext').textContent = i === TOUR.length - 1 ? 'Finish ✓' : 'Next →';
+        renderUcChips();
+        tourBox.classList.add('open');
+        setTimeout(() => {
+            const el = s.view === 'usecases'
+                ? document.querySelector('#view-usecases ' + s.focusSel)
+                : document.querySelector(s.target);
+            tourFocusEl = el;
+            el.classList.add('tour-focus');
+            scrollToEl(el);
+        }, 120);
+    }
+    function endTour() {
+        clearTourFocus();
+        tourBox.classList.remove('open');
+        tourIdx = -1;
+    }
+    document.getElementById('startTour').onclick = () => showTourStep(0);
+    document.getElementById('tourNext').onclick = () => (tourIdx < TOUR.length - 1 ? showTourStep(tourIdx + 1) : endTour());
+    document.getElementById('tourPrev').onclick = () => tourIdx > 0 && showTourStep(tourIdx - 1);
+    document.getElementById('tourExit').onclick = endTour;
+    document.addEventListener('keydown', (e) => {
+        if (tourIdx < 0) return;
+        if (e.key === 'Escape') endTour();
+        if (e.key === 'ArrowRight') document.getElementById('tourNext').click();
+        if (e.key === 'ArrowLeft') document.getElementById('tourPrev').click();
+    });
+
+    /* ============================================================
+       15. INIT
+       ============================================================ */
+    function refreshAll() {
+        renderKpis(); renderMap(); renderAlerts(); renderStatusChart(); renderVillageTable(); renderIndicators(); renderHarvest();
+        renderDemoChart(); renderPhotoChart();
+        if (!selectedId) renderPanelOverview();
+    }
+    refreshAll();
+    renderUseCases();
+    if (location.hash === '#usecases') setView('usecases');
+    if (location.hash === '#tour') showTourStep(0);
+    </script>
+</body>
+
+</html>
